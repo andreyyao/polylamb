@@ -1,0 +1,6 @@
+[workspace]
+
+members = [
+    "typed-racket",
+    "typed-riscv"
+]
