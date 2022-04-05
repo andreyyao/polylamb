@@ -1,6 +1,6 @@
 [workspace]
 
 members = [
-    "typed-racket",
+    "typed-sml",
     "typed-riscv"
 ]
