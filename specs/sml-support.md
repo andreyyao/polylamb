@@ -1,0 +1,38 @@
+## Language Features from SML that are supported:
+
+### Types
+
+#### Base types:
+
+* `int` (64 bit signed)
+
+* `bool` (true or false)
+
+[comment]:<>(TODO `real` (IEEE 64 bit))
+
+#### Type constructors: 
+
+* `t1 * t2` (Tuple)
+
+* `t1 -> t2` (Function type)
+
+### Operations
+
+* Arithmetic: `+`, `-`, `*`, `div`
+
+* Comparison: `=`, `<`, `>`, `<=`, `>=`, `<>`
+
+[comment]:<>(* Boolean: `not`, `andalso`, `orelse`)
+
+### Keywords
+
+* `if b then e1 else e2` If
+
+* `fn` Anonymous functions
+
+* `rec` Allowing function to self-reference
+
+* `val a : t = e` Binding [comment]:<>(TODO `fun (args..) : t = e`)
+
+* [comment]:<>(`let @bindings@ in e end`)
+
