@@ -25,14 +25,8 @@ pub enum Constant {
     Boolean(bool)
 }
 
-/* Unary operators */
-#[derive(Debug, PartialEq)]
-pub enum Unary {
-    Not, Neg
-}
-
 /* Binary operators. Note "-" only function as a binop */
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Binary {
     Add, Sub, Mul, Mod,
     Eq, Lt, Gt, Le, Ge, Ne,
@@ -45,8 +39,8 @@ pub enum Expr {
     Con{ constnt: Constant, typ: Typ },
     /// Identifiers
     Var{ id: Id, typ: Typ },
-    /// Unary operations
-    Unop{ op: Unary, kid: Box<Expr>, typ: Typ },
+    // /// Unary operations
+    // Unop{ op: Unary, kid: Box<Expr>, typ: Typ },
     /// Tuples, duh
     Tuple{ args: Vec<Expr>, typ: Typ },
     /// Binary operations

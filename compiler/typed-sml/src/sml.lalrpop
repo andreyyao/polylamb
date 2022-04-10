@@ -1,0 +1,48 @@
+use std::fmt;
+use crate::ast;
+use crate::lex;
+use logos::Lexer;
+
+grammar;
+
+extern {
+  type Location = usize;
+  type Error = lex::LexicalError;
+  enum lex::Token {
+    ":"     => lex::Token::Colon,
+    ":"	    => lex::Token::Comma,
+    "->"    => lex::Token::Arrow,
+    "("	    => lex::Token::LParen,
+    ")"	    => lex::Token::RParen,
+    "~"	    => lex::Token::Neg,
+    "not"   => lex::Token::Not,
+    "infix" => lex::Token::Infix(<ast::Binary>),
+    "ident" => lex::Token::Ident(<String>),
+    "int"   => lex::Token::IntLit(<i64>),
+    "bool"  => lex::Token::BoolLit(<bool>),
+    "if"    => lex::Token::If,
+    "then"  => lex::Token::Then,
+    "else"  => lex::Token::Else,
+    "val"   => lex::Token::Val,
+    "rec"   => lex::Token::Rec,
+    "fn"    => lex::Token::Fn,
+    "error" => lex::Token::Error
+  }
+}
+
+pub Expr8: ast::Expr = {
+    Atom 
+}
+
+//Containing single expressions
+pub Atom: ast::Expr = {
+    "int" =>
+    	  ast::Expr::Con{ constnt: ast::Constant::Integer(<>),
+    	     		  typ: Default::default() },
+    "bool" =>
+    	  ast::Expr::Con{ constnt: ast::Constant::Boolean(<>),
+    	     		  typ: Default::default() },
+    "ident" =>
+          ast::Expr::Var{ id: <>, typ: Default::default() }
+};
+

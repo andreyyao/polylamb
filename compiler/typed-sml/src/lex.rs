@@ -1,3 +1,4 @@
+use std::{fmt, ops::Range};
 use crate::ast;
 use logos::{Logos, Lexer};
 
@@ -49,7 +50,8 @@ fn token_int_lit(lex: &mut Lexer<Token>) -> Option<i64> {
     }
 }
 
-#[derive(Logos, Debug, PartialEq)]
+//TODO make the identifiers borrow names instead of copying them
+#[derive(Logos, Debug, PartialEq, Clone)]
 pub enum Token {
 
     #[token(":")] Colon,
@@ -66,17 +68,20 @@ pub enum Token {
 
     #[token("not")] Not,
 
-    #[regex(r"\*|\-|\+|=||<|>|<>|<=|>=|andalso|orelse", token_infix)]
+    #[regex(r"\*|mod|\-|\+|=|<|>|<>|<=|>=|andalso|orelse", token_infix)]
     Infix(ast::Binary),
 
     /// Identifiers
-    #[regex(r"[a-zA-Z][0-9a-zA-Z_']*")] Ident,
+    #[regex(r"[a-zA-Z][0-9a-zA-Z_']*", |lex| lex.slice().to_string())]
+    Ident(String),
 
     /// Integer literals
-    #[regex(r"(0x[0-9A-F]+)|([0-9]+)", token_int_lit)] IntLit(i64),
+    #[regex(r"(0x[0-9A-F]+)|([0-9]+)", token_int_lit)]
+    IntLit(i64),
 
     /// Bool literals
-    #[regex(r"true|false", token_bool_lit)] BoolLit(bool),
+    #[regex(r"true|false", token_bool_lit)]
+    BoolLit(bool),
 
     /***** Keywords *****/
     #[token("if")] If,
@@ -93,4 +98,25 @@ pub enum Token {
     #[error]
     #[regex(r#"[ \t\n\f]+"#, logos::skip)]
     Error,
+}
+
+pub type LexicalError = Range<usize>;
+
+impl Token {
+    pub fn to_lalr_triple(
+        (t, r): (Token, Range<usize>),
+    ) -> Result<(usize, Token, usize), LexicalError> {
+        if t == Token::Error {
+            Err(r)
+        } else {
+            Ok((r.start, t, r.end))
+        }
+    }
+}
+
+
+impl fmt::Display for Token {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:#?}", self)
+    }
 }
