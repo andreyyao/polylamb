@@ -1,5 +1,6 @@
 
-type Id = String;
+
+pub type Id = String;
 
 #[derive(Debug, PartialEq)]
 pub enum Typ {
@@ -32,6 +33,8 @@ pub enum Binary {
     Eq, Lt, Gt, Le, Ge, Ne,
     Andalso, Orelse
 }
+
+pub struct Annot { var: Id, typ: Typ }
 
 #[derive(Debug, PartialEq)]
 pub enum Expr {

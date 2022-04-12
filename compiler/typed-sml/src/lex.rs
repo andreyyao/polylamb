@@ -1,4 +1,4 @@
-use std::{fmt, ops::Range};
+use std::{fmt, ops::{Deref, DerefMut}};
 use crate::ast;
 use logos::{Logos, Lexer};
 
@@ -12,7 +12,6 @@ fn token_infix(lex: &mut Lexer<Token>) -> Option<ast::Binary> {
 	"-" => Sub,
 	"*" => Mul,
 	"mod" => Mod,
-	"=" => Eq,
 	"<" => Lt,
 	">" => Gt,
 	"<=" => Le,
@@ -58,6 +57,8 @@ pub enum Token {
 
     #[token(",")] Comma,
 
+    #[token("=")] Equal,
+
     #[token("->")] Arrow,
     
     #[token("(")] LParen,
@@ -68,8 +69,19 @@ pub enum Token {
 
     #[token("not")] Not,
 
-    #[regex(r"\*|mod|\-|\+|=|<|>|<>|<=|>=|andalso|orelse", token_infix)]
-    Infix(ast::Binary),
+    #[token("*")] Mul,
+    
+    /// Precedence 7
+    #[regex(r"mod", token_infix)]
+    Infix7(ast::Binary),
+
+    /// Precedence 6
+    #[regex(r"\-|\+", token_infix)]	
+    Infix6(ast::Binary),
+
+    /// Precedence 4
+    #[regex(r"<|>|<>|<=|>=|andalso|orelse", token_infix)]
+    Infix4(ast::Binary),
 
     /// Identifiers
     #[regex(r"[a-zA-Z][0-9a-zA-Z_']*", |lex| lex.slice().to_string())]
@@ -100,23 +112,38 @@ pub enum Token {
     Error,
 }
 
-pub type LexicalError = Range<usize>;
-
-impl Token {
-    pub fn to_lalr_triple(
-        (t, r): (Token, Range<usize>),
-    ) -> Result<(usize, Token, usize), LexicalError> {
-        if t == Token::Error {
-            Err(r)
-        } else {
-            Ok((r.start, t, r.end))
-        }
-    }
-}
-
-
 impl fmt::Display for Token {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{:#?}", self)
+    }
+}
+
+pub type LexicalError = usize;
+
+// Wraps the lexer in a self-defined struct. Otherwise
+// Rust complains about implementing Iterator trait for
+// Lexer<Token> struct, neither of which I created.
+pub struct LexerWrap<'source> { pub lexer: Lexer<'source, Token> }
+
+impl<'source> Deref for LexerWrap<'source> {
+    type Target = Lexer<'source, Token>;
+    fn deref(&self) -> &Self::Target {
+	&self.lexer
+    }
+}
+
+impl<'source> DerefMut for LexerWrap<'source> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+	&mut self.lexer
+    }
+}
+
+// Implements iterator for lalrpop Result type
+impl<'source> Iterator for LexerWrap<'source> {
+    type Item = Result<(usize, Token, usize), LexicalError>;
+    fn next(&mut self) -> Option<Self::Item> {
+	let token_opt = self.lexer.next();
+	let span = self.span();
+	token_opt.map(|token| Ok((span.start, token, span.end)))
     }
 }

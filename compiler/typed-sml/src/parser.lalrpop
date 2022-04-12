@@ -1,0 +1,71 @@
+use crate::ast;
+use crate::lex;
+
+grammar;
+
+//Using tokens from Logos
+extern {
+  type Location = usize;
+  type Error = lex::LexicalError;
+  enum lex::Token {
+    ":"     => lex::Token::Colon,
+    ","	    => lex::Token::Comma,
+    "->"    => lex::Token::Arrow,
+    "("	    => lex::Token::LParen,
+    ")"	    => lex::Token::RParen,
+    "~"	    => lex::Token::Neg,
+    "not"   => lex::Token::Not,
+    "infix4"=> lex::Token::Infix4(<ast::Binary>),
+    "infix6"=> lex::Token::Infix6(<ast::Binary>),
+    "infix7"=> lex::Token::Infix7(<ast::Binary>),
+    "ident" => lex::Token::Ident(<String>),
+    "int"   => lex::Token::IntLit(<i64>),
+    "bool"  => lex::Token::BoolLit(<bool>),
+    "if"    => lex::Token::If,
+    "then"  => lex::Token::Then,
+    "else"  => lex::Token::Else,
+    "val"   => lex::Token::Val,
+    "rec"   => lex::Token::Rec,
+    "fn"    => lex::Token::Fn,
+    "error" => lex::Token::Error
+  }
+}
+
+pub Expr: ast::Expr = {
+    <e: Expr8> => e
+}
+
+
+// Precedence 8: Function application
+Expr8: ast::Expr = {
+    <a: Atom> => a
+}
+
+// Comma-separated values. No trailing comma.
+CommaSep<T>: Vec<T> = {
+    <l: CommaSep<T>> "," <r: T> => { let mut l = l; l.push(r); l },
+    <e: T> => vec![e],
+}
+
+//TypeAnnot: 
+
+//Args as when declaring function 
+Pattern: Vec<ast::Id> = {
+    "(" <p: CommaSep<"ident">> ")" => p,
+    "(" <ps: CommaSep<Pattern>> ")" => vec![]
+}
+
+//Containing single expressions
+Atom: ast::Expr = {
+    "int" =>
+    	ast::Expr::Con{ constnt: ast::Constant::Integer(<>),
+    	     		typ: Default::default() },
+    "bool" =>
+    	ast::Expr::Con{ constnt: ast::Constant::Boolean(<>),
+    	     		typ: Default::default() },
+    "ident" =>
+        ast::Expr::Var{ id: <>,
+	                typ: Default::default() },
+    "(" <e: Expr> ")" => e	  
+};
+
