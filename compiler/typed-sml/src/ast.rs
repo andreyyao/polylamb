@@ -1,12 +1,10 @@
 
-
 pub type Id = String;
 
 #[derive(Debug, PartialEq)]
 pub enum Typ {
     Unknown,
-    Int,
-    Bool,
+    Ident(String),
     Tuple(Vec<Typ>),
     Arrow(Box<Typ>, Box<Typ>)
 }
@@ -22,6 +20,7 @@ impl Default for Typ {
 /* Literals */
 #[derive(Debug, PartialEq)]
 pub enum Constant {
+    Unit,
     Integer(i64),
     Boolean(bool)
 }
@@ -34,7 +33,28 @@ pub enum Binary {
     Andalso, Orelse
 }
 
-pub struct Annot { var: Id, typ: Typ }
+impl Binary {
+    /// Maps string rep of binops to their enum counterparts
+    pub fn of_str(s: &str) -> Binary {
+	use Binary::*;
+	match s {
+	    "+" => Add,
+	    "-" => Sub,
+	    "<" => Lt,
+	    ">" => Gt,
+	    "<=" => Le,
+	    ">=" => Ge,
+	    "<>" => Ne,
+	    "andalso" => Andalso,
+	    "orelse" => Orelse,
+	    _ => panic!(" At the Disco")
+	}
+    }
+}
+
+/// Annotated variable
+#[derive(Debug, PartialEq)]
+pub struct Annot { pub var: Id, pub typ: Typ }
 
 #[derive(Debug, PartialEq)]
 pub enum Expr {
@@ -45,17 +65,15 @@ pub enum Expr {
     // /// Unary operations
     // Unop{ op: Unary, kid: Box<Expr>, typ: Typ },
     /// Tuples, duh
-    Tuple{ args: Vec<Expr>, typ: Typ },
+    Tuple{ coords: Vec<Expr>, typ: Typ },
     /// Binary operations
     Binop{ op: Binary, lhs: Box<Expr>, rhs: Box<Expr>, typ: Typ },
-    Lambda{ args: Vec<Id>, body: Box<Expr>, typ: Typ },
+    Lambda{ args: Vec<Annot>, body: Box<Expr>, typ: Typ },
     Branch{ cond: Box<Expr>, br_t: Box<Expr>, br_f: Box<Expr>, typ: Typ },
     /// Function application
-    App { fun: Id, arg: Box<Expr>, typ: Typ } 
+    App { fun: Box<Expr>, arg: Box<Expr>, typ: Typ } 
     // Let { bindings: Vec<Binding>, body: Box<Expr> }
 }
-
-// pub struct Binding { arg: Param, exp: Box<Expr> }
 
 
 impl Expr {

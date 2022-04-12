@@ -1,26 +1,28 @@
 use crate::ast;
 use crate::lex;
 
-grammar;
+grammar<'a>;
 
 //Using tokens from Logos
 extern {
   type Location = usize;
   type Error = lex::LexicalError;
-  enum lex::Token {
+  enum lex::Token<'a> {
     ":"     => lex::Token::Colon,
     ","	    => lex::Token::Comma,
     "->"    => lex::Token::Arrow,
+    "=>"    => lex::Token::TwoArrow,
     "("	    => lex::Token::LParen,
     ")"	    => lex::Token::RParen,
+    "="	    => lex::Token::Equal,
     "~"	    => lex::Token::Neg,
+    "*"	    => lex::Token::Mul,
     "not"   => lex::Token::Not,
-    "infix4"=> lex::Token::Infix4(<ast::Binary>),
-    "infix6"=> lex::Token::Infix6(<ast::Binary>),
-    "infix7"=> lex::Token::Infix7(<ast::Binary>),
-    "ident" => lex::Token::Ident(<String>),
-    "int"   => lex::Token::IntLit(<i64>),
-    "bool"  => lex::Token::BoolLit(<bool>),
+    "infix4"=> lex::Token::Infix4(<&'a str>),
+    "infix6"=> lex::Token::Infix6(<&'a str>),
+    "ident" => lex::Token::Ident(<&'a str>),
+    "intLit"   => lex::Token::IntLit(<i64>),
+    "boolLit"  => lex::Token::BoolLit(<bool>),
     "if"    => lex::Token::If,
     "then"  => lex::Token::Then,
     "else"  => lex::Token::Else,
@@ -31,41 +33,107 @@ extern {
   }
 }
 
+//////// Precedence babyyyy ////////
+
 pub Expr: ast::Expr = {
+    <l: Expr> <o: "infix4"> <r:Expr6> =>
+        ast::Expr::Binop{ op: ast::Binary::of_str(o),
+			  lhs: Box::new(l),
+			  rhs: Box::new(r),
+			  typ: ast::Typ::Unknown },
+    <e: Expr6> => e
+}
+
+Expr6: ast::Expr = {
+    <l: Expr6> <o: "infix6"> <r:Expr7> =>
+        ast::Expr::Binop{ op: ast::Binary::of_str(o),
+			  lhs: Box::new(l),
+			  rhs: Box::new(r),
+			  typ: ast::Typ::Unknown },
+    <e: Expr7> => e
+}
+
+Expr7: ast::Expr = {
+    <l: Expr7> "*" <r:Expr8> =>
+        ast::Expr::Binop{ op: ast::Binary::Mul,
+			  lhs: Box::new(l),
+			  rhs: Box::new(r),
+			  typ: ast::Typ::Unknown },
     <e: Expr8> => e
 }
 
-
-// Precedence 8: Function application
 Expr8: ast::Expr = {
-    <a: Atom> => a
+    <e: ExprApp> => e
 }
 
-// Comma-separated values. No trailing comma.
-CommaSep<T>: Vec<T> = {
-    <l: CommaSep<T>> "," <r: T> => { let mut l = l; l.push(r); l },
-    <e: T> => vec![e],
+////////////////////////////////////
+
+///////////// Helpers //////////////
+
+// Two or more T separated by commas
+CommaSepMulti<T>: Vec<T> = {
+    <l: CommaSepMulti<T>> "," <r: T> => { let mut l = l; l.push(r); l },
+    <l: T> "," <r: T> => vec![l, r]
 }
 
-//TypeAnnot: 
+Pattern: Vec<ast::Annot> = {
+    <some: CommaSepMulti<Annot>> => some,
+    "(" <v: "ident"> ":" <t: "ident"> ")" =>
+        vec![ast::Annot{ var: v.to_string(),
+			 typ: ast::Typ::Ident(t.to_string()) }],
+    "(" ")" => vec![]
+}
+////////////////////////////////////
 
-//Args as when declaring function 
-Pattern: Vec<ast::Id> = {
-    "(" <p: CommaSep<"ident">> ")" => p,
-    "(" <ps: CommaSep<Pattern>> ")" => vec![]
+// Type annotated identifier.
+Annot: ast::Annot = {
+    <v1: "ident"> ":" <v2: "ident"> =>
+    	 ast::Annot{ var: v1.to_string(),
+	 	     typ: ast::Typ::Ident(v2.to_string()) }
 }
 
-//Containing single expressions
-Atom: ast::Expr = {
-    "int" =>
+ExprFn: ast::Expr = {
+    "fn" <p: Pattern> ":" <t: "ident"> "=>" <e: Expr> => {
+    	 ast::Expr::Lambda{ args: p,
+	 		    body: Box::new(e),
+			    typ:  ast::Typ::Ident(t.to_string()) }
+    }
+}
+
+ExprIf: ast::Expr = {
+    "if" <e1: Expr> "then" <e2: Expr> "else" <e3: Expr> =>
+    	 ast::Expr::Branch{ cond: Box::new(e1),
+	 		    br_t: Box::new(e2),
+			    br_f: Box::new(e3),
+			    typ:  ast::Typ::Unknown }
+}
+
+//Function application, precedence 8
+ExprApp: ast::Expr = {
+    <e1: ExprApp> <e2: ExprAtom> =>
+        ast::Expr::App{ fun: Box::new(e1),
+			arg: Box::new(e2),
+			typ: ast::Typ::Unknown },
+    <e: ExprAtom> => e
+}
+
+// Atomic expressions have no ambiguities. Highest precedence
+ExprAtom: ast::Expr = {
+    // Constant unit
+    "(" ")" =>
+        ast::Expr::Con{ constnt: ast::Constant::Unit,
+    	     		typ: ast::Typ::Unknown },
+    "intLit" =>
     	ast::Expr::Con{ constnt: ast::Constant::Integer(<>),
-    	     		typ: Default::default() },
-    "bool" =>
+    	     		typ: ast::Typ::Unknown },
+    "boolLit" =>
     	ast::Expr::Con{ constnt: ast::Constant::Boolean(<>),
-    	     		typ: Default::default() },
+    	     		typ: ast::Typ::Unknown },
     "ident" =>
-        ast::Expr::Var{ id: <>,
-	                typ: Default::default() },
-    "(" <e: Expr> ")" => e	  
-};
-
+        ast::Expr::Var{ id: <>.to_string(),
+	                typ: ast::Typ::Unknown },
+    "(" <es: CommaSepMulti<Expr>> ")" =>
+    	ast::Expr::Tuple{ coords: es,
+			  typ: ast::Typ::Unknown },
+    "(" <e: Expr> ")" => e,
+}
