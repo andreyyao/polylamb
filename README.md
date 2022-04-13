@@ -71,8 +71,6 @@
 <!-- ABOUT THE PROJECT -->
 ## About The Project
 
-[![Product Name Screen Shot][product-screenshot]](https://example.com)
-
 <p align="right">(<a href="#top">back to top</a>)</p>
 
 
@@ -210,4 +208,3 @@ Project Link: [https://github.com/andreyyao/tal-riscv](https://github.com/andrey
 [license-url]: https://github.com/andreyyao/tal-riscv/blob/main/LICENSE
 [linkedin-shield]: https://img.shields.io/badge/-LinkedIn-black.svg?style=for-the-badge&logo=linkedin&colorB=555
 [linkedin-url]: https://linkedin.com/in/andrey-y-097152130
-[product-screenshot]: images/screenshot.png
