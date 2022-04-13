@@ -71,7 +71,7 @@
 <!-- ABOUT THE PROJECT -->
 ## About The Project
 
-<!-- [![Product Name Screen Shot][product-screenshot]](https://example.com) -->
+[![Product Name Screen Shot][product-screenshot]](https://example.com)
 
 <p align="right">(<a href="#top">back to top</a>)</p>
 
@@ -152,7 +152,7 @@ To get a local copy up and running follow these simple example steps.
 	- [ ] type checking
 
 
-See the [open issues](https://github.com/othneildrew/Best-README-Template/issues) for a full list of proposed features (and known issues).
+<!-- See the [open issues](https://github.com/othneildrew/Best-README-Template/issues) for a full list of proposed features (and known issues). -->
 
 <p align="right">(<a href="#top">back to top</a>)</p>
 
@@ -210,4 +210,4 @@ Project Link: [https://github.com/andreyyao/tal-riscv](https://github.com/andrey
 [license-url]: https://github.com/andreyyao/tal-riscv/blob/main/LICENSE
 [linkedin-shield]: https://img.shields.io/badge/-LinkedIn-black.svg?style=for-the-badge&logo=linkedin&colorB=555
 [linkedin-url]: https://linkedin.com/in/andrey-y-097152130
-<!-- [product-screenshot]: images/screenshot.png -->
+[product-screenshot]: images/screenshot.png
