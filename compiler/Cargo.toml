@@ -1,6 +1,6 @@
 [workspace]
 
 members = [
-    "typed-sml",
-    "typed-riscv"
+    "sml",
+    "riscv"
 ]

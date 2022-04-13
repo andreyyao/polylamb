@@ -1,5 +1,5 @@
 [package]
-name = "typed-sml"
+name = "sml"
 version = "0.1.0"
 edition = "2021"
 
