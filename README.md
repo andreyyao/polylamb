@@ -137,7 +137,7 @@ To get a local copy up and running follow these simple example steps.
 ## Roadmap
 
 - [x] Standard ML
-	- [x] language support [specification]()
+	- [x] language support [specification](https://github.com/andreyyao/tal-riscv/blob/main/specs/sml-support.pdf)
 	- [x] lexing
 	- [x] parsing
 	- [ ] type checking
@@ -189,6 +189,7 @@ Project Link: [https://github.com/andreyyao/tal-riscv](https://github.com/andrey
 
 * [Choose an Open Source License](https://choosealicense.com)
 * [Best-README-Template](https://github.com/othneildrew/Best-README-Template) - template for README.md
+* [Article about CPS conversion by Matt Might](https://matt.might.net/articles/cps-conversion/)
 
 <p align="right">(<a href="#top">back to top</a>)</p>
 
