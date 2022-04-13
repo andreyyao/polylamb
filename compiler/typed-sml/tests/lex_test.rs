@@ -9,21 +9,31 @@ fn check_one(input: &str, token: Token) {
     assert_eq!(lexer.slice(), input);
 }
 
+const INT_PAIRS : [(&str, i64); 9] = [
+    ("12345", 12345),
+    ("02020112", 2020112),
+    ("0xAF7926", 0xaf7926),
+    ("0x000ABCD", 0xabcd),
+    ("12638124", 12638124),
+    ("0", 0),
+    ("127436", 127436),
+    ("91746", 91746),
+    ("0xFFFF", 0xffff)
+];
+
+const IDENTS: [&str; 21]= [
+    "abfuwegvdw", "AYUSDFIS", "aGgiIGoVoD",
+    "A12796132_'", "B'_'_'_'_", "C1s1j7n8O9",
+    "llllllllll", "wtf", "decoy_rubberband",
+    "derive_macro", "lololol", "mitochondria",
+    "Ahhhhhhh", "folder''", "map''",
+    "not2", "anotb", "notnot",
+    "ifthenelse", "hehe", "h1h3oi4bh54o"
+];
 
 #[test]
 fn int_lits() {
-    let pairs = [
-	("12345", 12345),
-	("02020112", 2020112),
-	("0xAF7926", 0xaf7926),
-	("0x000ABCD", 0xabcd),
-	("12638124", 12638124),
-	("0", 0),
-	("127436", 127436),
-	("91746", 91746),
-	("0xFFFF", 0xffff)
-    ];
-    for (input, expect) in pairs {
+    for (input, expect) in INT_PAIRS {
 	check_one(input, Token::IntLit(expect));
     }
 }
@@ -36,31 +46,21 @@ fn bool_lits() {
 
 #[test]
 fn idents() {
-    let inputs = [
-	"abfuwegvdw", "AYUSDFIS", "aGgiIGoVoD",
-	"A12796132_'", "B'_'_'_'_", "C1s1j7n8O9",
-	"llllllllll", "wtf", "decoy_rubberband",
-	"derive_macro", "lololol", "mitochondria",
-	"Ahhhhhhh", "folder''", "map''", "not2",
-	"anotb", "notnot", "ifthenelse"
-    ];
-    for input in inputs {
-	check_one(input, Token::Ident(input.to_string()));
+    for input in IDENTS {
+	check_one(input, Token::Ident(&input));
     }
 }
 
 #[test]
 fn infixes() {
     use Binary::*;
-    let pairs7 = [ ("*", Mul), ("mod", Mod) ];
-    let pairs6 = [ ("+", Add), ("-", Sub) ];
-    let pairs4 = [
-	("<", Lt), (">", Gt), ("<=", Le), (">=", Ge),
-	("<>", Ne), ("andalso", Andalso), ("orelse", Orelse)
-    ];
-    for (input, expect) in pairs7 { check_one(input, Token::Infix7(expect)); }
-    for (input, expect) in pairs6 { check_one(input, Token::Infix6(expect)); }
-    for (input, expect) in pairs4 { check_one(input, Token::Infix4(expect)); }
+    let ops6 = [ "+", "-"];
+    let ops4 = [ "<", ">", "<=", ">=", "<>" ];
+    let ops3 = [ "andalso", "orelse" ];
+    check_one("*", Token::Mul);
+    for input in ops6 { check_one(input, Token::Infix6(input)); }
+    for input in ops4 { check_one(input, Token::Infix4(input)); }
+    for input in ops3 { check_one(input, Token::Infix3(input)); }
 }
 
 #[test]
@@ -80,7 +80,7 @@ fn symbols() {
     use Token::*;
     let pairs = [
 	("(", LParen), (")", RParen), ("=", Equal), (",", Comma),
-	(":", Colon), ("~", Neg), ("not", Not), ("->", Arrow)
+	(":", Colon), ("->", Arrow)
     ];
     for (input, expect) in pairs {
 	check_one(input, expect);

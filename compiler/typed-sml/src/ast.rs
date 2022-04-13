@@ -28,7 +28,7 @@ pub enum Constant {
 /* Binary operators. Note "-" only function as a binop */
 #[derive(Debug, PartialEq, Clone)]
 pub enum Binary {
-    Add, Sub, Mul, Mod,
+    Add, Sub, Mul,
     Eq, Lt, Gt, Le, Ge, Ne,
     Andalso, Orelse
 }
@@ -40,6 +40,8 @@ impl Binary {
 	match s {
 	    "+" => Add,
 	    "-" => Sub,
+	    "*" => Mul,
+	    "=" => Eq,
 	    "<" => Lt,
 	    ">" => Gt,
 	    "<=" => Le,

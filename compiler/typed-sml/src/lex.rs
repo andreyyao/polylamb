@@ -44,12 +44,8 @@ pub enum Token<'a> {
     #[token("->")] Arrow,
 
     #[token("=>")] TwoArrow,
-    
-    #[token("~")] Neg,
 
     #[token("*")] Mul,
-
-    #[token("not")] Not,
 
     // Different precedences in the token enum level is
     // necessary for the parser to disambiguate
@@ -58,11 +54,15 @@ pub enum Token<'a> {
     Infix6(&'a str),
 
     /// Precedence 4
-    #[regex(r"<|>|<>|<=|>=|andalso|orelse", |lex| lex.slice())]
+    #[regex(r"<|>|<>|<=|>=", |lex| lex.slice())]
     Infix4(&'a str),
 
+    /// Precedence 3
+    #[regex(r"andalso|orelse", |lex| lex.slice())]
+    Infix3(&'a str),
+
     /// Identifiers
-    #[regex(r"[a-zA-Z][0-9a-zA-Z_']*", |lex| lex.slice())]
+    #[regex(r"[a-zA-Z][0-9a-zA-Z_']*|~", |lex| lex.slice())]
     Ident(&'a str),
 
     /// Integer literals

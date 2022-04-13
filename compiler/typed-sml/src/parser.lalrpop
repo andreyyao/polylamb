@@ -1,5 +1,4 @@
-use crate::ast;
-use crate::lex;
+use crate::{ast, lex, parse::utils};
 
 grammar<'a>;
 
@@ -15,9 +14,8 @@ extern {
     "("	    => lex::Token::LParen,
     ")"	    => lex::Token::RParen,
     "="	    => lex::Token::Equal,
-    "~"	    => lex::Token::Neg,
     "*"	    => lex::Token::Mul,
-    "not"   => lex::Token::Not,
+    "infix3"=> lex::Token::Infix3(<&'a str>),
     "infix4"=> lex::Token::Infix4(<&'a str>),
     "infix6"=> lex::Token::Infix6(<&'a str>),
     "ident" => lex::Token::Ident(<&'a str>),
@@ -33,32 +31,44 @@ extern {
   }
 }
 
+pub Expr: ast::Expr = {
+    <e: Expr2> => e,
+    <e: ExprIf> => e
+}
+
 //////// Precedence babyyyy ////////
 
-pub Expr: ast::Expr = {
-    <l: Expr> <o: "infix4"> <r:Expr6> =>
-        ast::Expr::Binop{ op: ast::Binary::of_str(o),
-			  lhs: Box::new(l),
-			  rhs: Box::new(r),
-			  typ: ast::Typ::Unknown },
+// Lambda expressions
+Expr2: ast::Expr = {
+    "fn" <p: Pattern> ":" <t: "ident"> "=>" <e: Expr3> =>
+    	 ast::Expr::Lambda{ args: p,
+	 		    body: Box::new(e),
+			    typ:  ast::Typ::Ident(t.to_string()) },
+    <e: Expr3> => e
+    
+}
+
+// Binops with andalso orelse
+Expr3: ast::Expr = {
+    <l: Expr3> <o: "infix3"> <r:Expr4> => utils::make_binop(l, o,  r),
+    <e: Expr4> => e
+}
+
+// Binops with < > <= >= = <>
+Expr4: ast::Expr = {
+    <l: Expr4> <o: "infix4"> <r:Expr6> => utils::make_binop(l, o, r),
+    <l: Expr4> "=" <r:Expr6> => utils::make_binop(l, "=", r),
     <e: Expr6> => e
 }
 
+// Binops with + -
 Expr6: ast::Expr = {
-    <l: Expr6> <o: "infix6"> <r:Expr7> =>
-        ast::Expr::Binop{ op: ast::Binary::of_str(o),
-			  lhs: Box::new(l),
-			  rhs: Box::new(r),
-			  typ: ast::Typ::Unknown },
+    <l: Expr6> <o: "infix6"> <r:Expr7> => utils::make_binop(l, o, r),
     <e: Expr7> => e
 }
 
 Expr7: ast::Expr = {
-    <l: Expr7> "*" <r:Expr8> =>
-        ast::Expr::Binop{ op: ast::Binary::Mul,
-			  lhs: Box::new(l),
-			  rhs: Box::new(r),
-			  typ: ast::Typ::Unknown },
+    <l: Expr7> "*" <r:Expr8> => utils::make_binop(l, "*", r),
     <e: Expr8> => e
 }
 
@@ -90,14 +100,6 @@ Annot: ast::Annot = {
     <v1: "ident"> ":" <v2: "ident"> =>
     	 ast::Annot{ var: v1.to_string(),
 	 	     typ: ast::Typ::Ident(v2.to_string()) }
-}
-
-ExprFn: ast::Expr = {
-    "fn" <p: Pattern> ":" <t: "ident"> "=>" <e: Expr> => {
-    	 ast::Expr::Lambda{ args: p,
-	 		    body: Box::new(e),
-			    typ:  ast::Typ::Ident(t.to_string()) }
-    }
 }
 
 ExprIf: ast::Expr = {
