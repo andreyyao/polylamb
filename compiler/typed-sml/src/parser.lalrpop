@@ -31,6 +31,15 @@ extern {
   }
 }
 
+pub Prog: ast::Prog = {
+    <bs: ValBind*> => bs
+}
+
+pub ValBind: ast::ValBind = {
+    "val" <r: "rec"?> <v: "ident"> "=" <e: Expr> =>
+        ast::ValBind { id: v.to_string(), exp: e, rec: r.is_some() }
+}
+
 pub Expr: ast::Expr = {
     <e: Expr2> => e,
     <e: ExprIf> => e
@@ -45,7 +54,6 @@ Expr2: ast::Expr = {
 	 		    body: Box::new(e),
 			    typ:  ast::Typ::Ident(t.to_string()) },
     <e: Expr3> => e
-    
 }
 
 // Binops with andalso orelse
@@ -67,13 +75,19 @@ Expr6: ast::Expr = {
     <e: Expr7> => e
 }
 
+// Binops with *
 Expr7: ast::Expr = {
     <l: Expr7> "*" <r:Expr8> => utils::make_binop(l, "*", r),
     <e: Expr8> => e
 }
 
+//Function application, precedence 8
 Expr8: ast::Expr = {
-    <e: ExprApp> => e
+    <e1: Expr8> <e2: ExprAtom> =>
+        ast::Expr::App{ fun: Box::new(e1),
+			arg: Box::new(e2),
+			typ: ast::Typ::Unknown },
+    <e: ExprAtom> => e
 }
 
 ////////////////////////////////////
@@ -93,7 +107,6 @@ Pattern: Vec<ast::Annot> = {
 			 typ: ast::Typ::Ident(t.to_string()) }],
     "(" ")" => vec![]
 }
-////////////////////////////////////
 
 // Type annotated identifier.
 Annot: ast::Annot = {
@@ -102,21 +115,14 @@ Annot: ast::Annot = {
 	 	     typ: ast::Typ::Ident(v2.to_string()) }
 }
 
+////////////////////////////////////
+
 ExprIf: ast::Expr = {
     "if" <e1: Expr> "then" <e2: Expr> "else" <e3: Expr> =>
     	 ast::Expr::Branch{ cond: Box::new(e1),
 	 		    br_t: Box::new(e2),
 			    br_f: Box::new(e3),
 			    typ:  ast::Typ::Unknown }
-}
-
-//Function application, precedence 8
-ExprApp: ast::Expr = {
-    <e1: ExprApp> <e2: ExprAtom> =>
-        ast::Expr::App{ fun: Box::new(e1),
-			arg: Box::new(e2),
-			typ: ast::Typ::Unknown },
-    <e: ExprAtom> => e
 }
 
 // Atomic expressions have no ambiguities. Highest precedence
