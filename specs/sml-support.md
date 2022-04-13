@@ -18,7 +18,7 @@
 
 ### Operations
 
-* Arithmetic: `+`, `-`, `*`, `div`
+* Arithmetic: `+`, `-`, `*`, [comment]:<>(`mod`)
 
 * Comparison: `=`, `<`, `>`, `<=`, `>=`, `<>`
 
@@ -26,9 +26,13 @@
 
 ### Keywords
 
-* `if b then e1 else e2` If
+* `if b then e1 else e2` If expressions
 
-* `fn` Anonymous functions
+* `fn pat => e` Anonymous function
+
+	`pat` is a comma separated variable bindings, surrounded
+	by parentheses. Each variable binding needs to be type annotated.
+	[comment]:<>(TODO allow actual patterns, i.e. nested tuples and such)
 
 * `rec` Allowing function to self-reference
 

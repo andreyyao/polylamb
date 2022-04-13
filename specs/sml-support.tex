@@ -1,0 +1,43 @@
+\documentclass[12pt]{article}
+\usepackage[letterpaper,margin=0.5in]{geometry}
+\usepackage{amsmath,amsthm,amssymb,latexsym}
+\usepackage{tikz,float,dsfont,multirow,bbm}
+\usepackage{caption,subcaption,underscore,tikz-cd}
+\usepackage{indentfirst,multicol,mathtools}
+
+\author{Andrey Yao}
+
+\newcommand{\gm}[1]{\textit{#1}} %Grammars are italicized
+\newcommand{\kw}[1]{\textbf{#1}} %SML keywords(verbatim)
+\newcommand{\hd}[1]{ \gm{#1} & := }
+\newcommand{\row}[2]{ & #1 &  & #2\\}
+\newcommand{\newrow}[2]{ & &#1 & &#2\\}
+
+\begin{document}
+\begin{tabular}{l l l l l}
+  \hline % Expressions
+  \hd{atexp}
+  \row{\gm{con}}{constant(int, bool), like \kw{1}, \kw{true} }
+  \newrow{\gm{vid}}{variable identifier}
+  \newrow{\kw{(} \gm{exp} \kw{)}}{parenthesized}
+  \hd{exp}
+  \row{\gm{atexp}}{atomic}
+  \newrow{\gm{exp} \gm{atexp}}{application}
+  \newrow{\gm{exp}$_1$ \gm{binop} \gm{exp}$_2$}{infix application}
+  \newrow{\kw{fn} \kw{(} \texttt{<}\gm{vid} \kw{:} \gm{typ}\texttt{>}$^{(,)}$ \kw{)} \kw{:} \gm{typ}$_\text{ret}$ \kw{\texttt{=>}} \gm{exp}}{anonymous function}
+  \newrow{\kw{if} \gm{exp}$_\text{b}$ \kw{then} \gm{exp}$_\text{t}$ \kw{else} \gm{exp}$_\text{f}$}{if expression}
+  \hd{dec}
+  \row{\kw{val} \gm{vid} \kw{:} \gm{typ} \kw{\texttt{=}} \gm{exp}}{value bind}
+  \hline %Types
+  \hd{attyp}
+  \row{\gm{tid}}{type variable}
+  \newrow{\kw{(} \gm{typ} \kw{)}}{parenthesized}
+  \hd{typ}
+  \row{\gm{attyp}}{atomic}
+  \newrow{\gm{typ} \texttt{<}{\bf$*$} \gm{typ}\texttt{>}$^+$}{tuple type}
+  \newrow{\gm{typ}$_1$ \kw{\texttt{->}} \gm{typ}$_2$}{arrow type}
+\end{tabular}
+\\\\\\
+Initialize the typing context with \kw{int}, \kw{bool}, \kw{unit} and such.
+\end{document}
+
