@@ -7,33 +7,38 @@ fn token_bool_lit<'a>(lex: &mut Lexer<'a, Token<'a>>) -> Option<bool> {
     let n = slice.parse::<bool>();
     match n {
 	Result::Ok(b) => Some(b),
-	Result::Err(_) => panic!("Expected bool literal")
+	Result::Err(_err) => panic!("Expected bool literal")
     }
 }
 
 /// Callback for int literal tokens
 fn token_int_lit<'a>(lex: &mut Lexer<'a, Token<'a>>) -> Option<i64> {
     let slice : &'a str = lex.slice();
-    let n = if slice.starts_with("0x") {
-	let slice2 = slice.trim_start_matches("0x");
+    let sign : usize = if slice.starts_with('~') { 1 } else { 0 };
+    let slice_abs = &slice[sign..];
+    let n_abs = if slice_abs.starts_with("0x") {
+	let slice2 = slice_abs.trim_start_matches("0x");
 	i64::from_str_radix(slice2, 16)
     }
     else {
-	slice.parse::<i64>()
+	slice_abs.parse::<i64>()
     };
-    match n {
-	Result::Ok(i) => Some(i),
-	Result::Err(_) => panic!("Expected integer literal")
+    match n_abs {
+	// Arithmetic magic to encode the negative sign
+	Result::Ok(i) => Some(i * (1 - 2 * (sign as i64))),
+	Result::Err(_err) => panic!("Expected integer literal")
     }
 }
 
-//TODO make the identifiers borrow names instead of copying them
+
+// Tokens
 #[derive(Logos, Debug, PartialEq, Clone)]
 pub enum Token<'a> {
 
+    // Punctuations
     #[token(":")] Colon,
-
     #[token(",")] Comma,
+    #[token(";")] Semicolon,
 
     #[token("=")] Equal,
     
@@ -62,11 +67,11 @@ pub enum Token<'a> {
     Infix3(&'a str),
 
     /// Identifiers
-    #[regex(r"[a-zA-Z][0-9a-zA-Z_']*|~", |lex| lex.slice())]
+    #[regex(r"(!%&\$#\+-/:<=>?@\\~`\^\|\*)+|([a-zA-Z'][0-9a-zA-Z_']*)", |lex| lex.slice())]
     Ident(&'a str),
 
     /// Integer literals
-    #[regex(r"(0x[0-9A-F]+)|([0-9]+)", token_int_lit)]
+    #[regex(r"\~?((0x[`0-9A-F]+)|([0-9]+))", token_int_lit)]
     IntLit(i64),
 
     /// Bool literals
@@ -74,11 +79,35 @@ pub enum Token<'a> {
     BoolLit(bool),
 
     /***** Keywords *****/
-    #[token("if")] If,
-    #[token("then")] Then,
+    #[token("abstype")] Abstype,
+    #[token("and")] And,
+    #[token("as")] As,
+    #[token("case")] Case,
+    #[token("datatype")] Datatype,
+    #[token("do")] Do,
     #[token("else")] Else,
-    #[token("val")] Val,
+    #[token("end")] End,
+    #[token("exception")] Exception,
+    #[token("fun")] Fun,
+    #[token("handle")] Handle,
+    #[token("if")] If,
+    #[token("in")] In,
+    #[token("infix")] Infix,
+    #[token("infixr")] Infixr,
+    #[token("let")] Let,
+    #[token("local")] Local,
+    #[token("nonfix")] Nonfix,
+    #[token("of")] Of,
+    #[token("op")] Op,
+    #[token("open")] Open,
+    #[token("raise")] Raise,
     #[token("rec")] Rec,
+    #[token("then")] Then,
+    #[token("type")] Type,
+    #[token("val")] Val,
+    #[token("with")] With,
+    #[token("withtype")] Withtype,
+    #[token("while")] While,
     #[token("fn")] Fn,
 
     // Logos requires one token variant to handle errors,

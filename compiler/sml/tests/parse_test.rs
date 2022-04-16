@@ -1,6 +1,6 @@
-use typed_sml::parse::parser;
-use typed_sml::lex::Token;
-use typed_sml::lex::LexerWrap;
+use sml::parse::parser;
+use sml::lex::Token;
+use sml::lex::LexerWrap;
 use logos::Logos;
 
 /// Just asserts that the input string parses as a well-formed

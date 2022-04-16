@@ -47,7 +47,7 @@ pub Expr: ast::Expr = {
 
 //////// Precedence babyyyy ////////
 
-// Lambda expressions
+// Lambda expressions. Expression body extends as far as possible
 Expr2: ast::Expr = {
     "fn" <p: Pattern> ":" <t: "ident"> "=>" <e: Expr3> =>
     	 ast::Expr::Lambda{ args: p,
@@ -56,32 +56,32 @@ Expr2: ast::Expr = {
     <e: Expr3> => e
 }
 
-// Binops with andalso orelse
+// Binops with andalso orelse, precedence 3, left assoc
 Expr3: ast::Expr = {
     <l: Expr3> <o: "infix3"> <r:Expr4> => utils::make_binop(l, o,  r),
     <e: Expr4> => e
 }
 
-// Binops with < > <= >= = <>
+// Binops with < > <= >= = <>, precedence 4, left assoc
 Expr4: ast::Expr = {
     <l: Expr4> <o: "infix4"> <r:Expr6> => utils::make_binop(l, o, r),
     <l: Expr4> "=" <r:Expr6> => utils::make_binop(l, "=", r),
     <e: Expr6> => e
 }
 
-// Binops with + -
+// Binops with + -, precedence 6, left assoc
 Expr6: ast::Expr = {
     <l: Expr6> <o: "infix6"> <r:Expr7> => utils::make_binop(l, o, r),
     <e: Expr7> => e
 }
 
-// Binops with *
+// Binops with *, precedence 7, left assoc
 Expr7: ast::Expr = {
     <l: Expr7> "*" <r:Expr8> => utils::make_binop(l, "*", r),
     <e: Expr8> => e
 }
 
-//Function application, precedence 8
+//Function application, precedence 8, left assoc
 Expr8: ast::Expr = {
     <e1: Expr8> <e2: ExprAtom> =>
         ast::Expr::App{ fun: Box::new(e1),

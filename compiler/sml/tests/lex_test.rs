@@ -1,6 +1,5 @@
-extern crate typed_sml;
-use typed_sml::lex::Token;
-use typed_sml::ast::Binary;
+extern crate sml;
+use sml::lex::Token;
 use logos::Logos;
 
 fn check_one(input: &str, token: Token) {
@@ -10,15 +9,15 @@ fn check_one(input: &str, token: Token) {
 }
 
 const INT_PAIRS : [(&str, i64); 9] = [
-    ("12345", 12345),
     ("02020112", 2020112),
     ("0xAF7926", 0xaf7926),
     ("0x000ABCD", 0xabcd),
     ("12638124", 12638124),
-    ("0", 0),
+    ("0xFFFF", 0xffff),
     ("127436", 127436),
     ("91746", 91746),
-    ("0xFFFF", 0xffff)
+    ("12345", 12345),
+    ("0", 0)
 ];
 
 const IDENTS: [&str; 21]= [
@@ -53,11 +52,11 @@ fn idents() {
 
 #[test]
 fn infixes() {
-    use Binary::*;
     let ops6 = [ "+", "-"];
     let ops4 = [ "<", ">", "<=", ">=", "<>" ];
     let ops3 = [ "andalso", "orelse" ];
     check_one("*", Token::Mul);
+    check_one("=", Token::Equal);
     for input in ops6 { check_one(input, Token::Infix6(input)); }
     for input in ops4 { check_one(input, Token::Infix4(input)); }
     for input in ops3 { check_one(input, Token::Infix3(input)); }
@@ -80,7 +79,7 @@ fn symbols() {
     use Token::*;
     let pairs = [
 	("(", LParen), (")", RParen), ("=", Equal), (",", Comma),
-	(":", Colon), ("->", Arrow)
+	(":", Colon), ("->", Arrow), ("=>", TwoArrow)
     ];
     for (input, expect) in pairs {
 	check_one(input, expect);

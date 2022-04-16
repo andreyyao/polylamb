@@ -1,26 +1,12 @@
 <div id="top"></div>
-<!-- PROJECT SHIELDS -->
-<!--
-*** I'm using markdown "reference style" links for readability.
-*** Reference links are enclosed in brackets [ ] instead of parentheses ( ).
-*** See the bottom of this document for the declaration of the reference variables
-*** for contributors-url, forks-url, etc. This is an optional, concise syntax you may use.
-*** https://www.markdownguide.org/basic-syntax/#reference-style-links
--->
-<!-- [![Contributors][contributors-shield]][contributors-url] -->
-<!-- [![Forks][forks-shield]][forks-url] -->
-<!-- [![Stargazers][stars-shield]][stars-url] -->
-<!-- [![Issues][issues-shield]][issues-url] -->
-<!-- [![MIT License][license-shield]][license-url] -->
-<!-- [![LinkedIn][linkedin-shield]][linkedin-url] -->
 
 
 <!-- PROJECT LOGO -->
 <br />
 <div align="center">
-  <a href="https://github.com/othneildrew/Best-README-Template">
-    <!-- <img src="images/logo.png" alt="Logo" width="80" height="80"> -->
-  </a>
+  <!-- <a href="https://github.com/othneildrew/Best-README-Template"> -->
+  <!--   <img src="images/logo.png" alt="Logo" width="80" height="80"> -->
+  <!-- </a> -->
 
   <h3 align="center">TAL - RISC-V</h3>
 
@@ -71,13 +57,14 @@
 <!-- ABOUT THE PROJECT -->
 ## About The Project
 
+This is a (re)implementation of concepts from the paper [*From system F to typed assembly language*](https://dl.acm.org/doi/10.1145/319301.319345) by Greg Morrisett, David Walker, Karl Crary, and Neal Glew. There are a few implementation details that differ from their original implementation.
+
+This project originated as a course project for [*CS6120 - Advanced Compilers*](https://www.cs.cornell.edu/courses/cs6120/2022sp/) at Cornell University.
+
 <p align="right">(<a href="#top">back to top</a>)</p>
 
 
-
 ### Built With
-
-This section should list any major frameworks/libraries used to bootstrap your project. Leave any add-ons/plugins for the acknowledgements section. Here are a few examples.
 
 * [Logos](https://github.com/maciejhirsz/logos) - fast lexer
 * [LALRPOP](https://github.com/lalrpop/lalrpop) - LR(1) parser generator
@@ -125,6 +112,7 @@ To get a local copy up and running follow these simple example steps.
 <!-- USAGE EXAMPLES -->
 ## Usage
 
+Not available at the moment.
 <!-- Use this space to show useful examples of how a project can be used. Additional screenshots, code examples and demos work well in this space. You may also link to more resources. -->
 
 <!-- _For more examples, please refer to the [Documentation](https://example.com)_ -->
@@ -137,7 +125,7 @@ To get a local copy up and running follow these simple example steps.
 ## Roadmap
 
 - [x] Standard ML
-	- [x] language support [specification](https://github.com/andreyyao/tal-riscv/blob/main/specs/sml-support.pdf)
+	- [x] language support [specification](specs/sml-support.pdf)
 	- [x] lexing
 	- [x] parsing
 	- [ ] type checking
@@ -192,20 +180,3 @@ Project Link: [https://github.com/andreyyao/tal-riscv](https://github.com/andrey
 * [Article about CPS conversion by Matt Might](https://matt.might.net/articles/cps-conversion/)
 
 <p align="right">(<a href="#top">back to top</a>)</p>
-
-
-
-<!-- MARKDOWN LINKS & IMAGES -->
-<!-- https://www.markdownguide.org/basic-syntax/#reference-style-links -->
-<!-- [contributors-shield]: https://img.shields.io/github/contributors/othneildrew/Best-README-Template.svg?style=for-the-badge -->
-<!-- [contributors-url]: https://github.com/andreyyao/tal-riscv/graphs/contributors -->
-<!-- [forks-shield]: https://img.shields.io/github/forks/othneildrew/Best-README-Template.svg?style=for-the-badge -->
-<!-- [forks-url]: https://github.com/andreyyao/tal-riscv/network/members -->
-<!-- [stars-shield]: https://img.shields.io/github/stars/othneildrew/Best-README-Template.svg?style=for-the-badge -->
-<!-- [stars-url]: https://github.com/andreyyao/tal-riscv/stargazers -->
-<!-- [issues-shield]: https://img.shields.io/github/issues/othneildrew/Best-README-Template.svg?style=for-the-badge -->
-<!-- [issues-url]: https://github.com/andreyyao/tal-riscv/issues -->
-<!-- [license-shield]: https://img.shields.io/github/license/othneildrew/Best-README-Template.svg?style=for-the-badge -->
-<!-- [license-url]: https://github.com/andreyyao/tal-riscv/blob/main/LICENSE -->
-<!-- [linkedin-shield]: https://img.shields.io/badge/-LinkedIn-black.svg?style=for-the-badge&logo=linkedin&colorB=555 -->
-<!-- [linkedin-url]: https://linkedin.com/in/andrey-y-097152130 -->
