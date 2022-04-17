@@ -67,7 +67,7 @@ pub enum Token<'a> {
     Infix3(&'a str),
 
     /// Identifiers
-    #[regex(r"(!%&\$#\+-/:<=>?@\\~`\^\|\*)+|([a-zA-Z'][0-9a-zA-Z_']*)", |lex| lex.slice())]
+    #[regex(r"[!%&\$#\+-/:<=>?@\\~`\^\|\*]+|([a-zA-Z'][0-9a-zA-Z_']*)", |lex| lex.slice())]
     Ident(&'a str),
 
     /// Integer literals
@@ -78,6 +78,7 @@ pub enum Token<'a> {
     #[regex(r"true|false", token_bool_lit)]
     BoolLit(bool),
 
+    // Not all of the below are supported
     /***** Keywords *****/
     #[token("abstype")] Abstype,
     #[token("and")] And,

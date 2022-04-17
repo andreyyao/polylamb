@@ -1,14 +1,5 @@
-use sml::parse::parser;
-use sml::lex::Token;
-use sml::lex::LexerWrap;
-use logos::Logos;
-
-/// Just asserts that the input string parses as a well-formed
-/// Expression. They might not be well-typed, but that's fine
-fn expr_ok(input: &str){
-    let lexer = LexerWrap{ lexer: Token::lexer(input) };
-    assert!(parser::ExprParser::new().parse(lexer).is_ok());
-}
+use sml::parse::parse_expr;
+use sml::ast;
 
 const INPUT_ATOMS : [&str; 15] = [
     "haha", "decoy", "rubberband", "(2 + 4)",
@@ -17,19 +8,51 @@ const INPUT_ATOMS : [&str; 15] = [
     "(fn (x: int) : int => x + 1 * 3)", "(twice f 1)",
 ];
 
-const INPUT_IFS : [&str; 4] = [
+const INPUT_IFS : [&str; 6] = [
     "if b then 1 else 3",
     "if 120937 then x + y + z else (fn (x : bool) : bool => not x)",
     "if b then b else if b then b else b",
-    "if (x * y <= z = 1) then a else ((((), ())))"
+    "if (x * y <= z = 1) then a else ((((), ())))",
+    "if ####### then 999 else 12479468",
+    "if (0,0,(),9) then hehehehe else (not 1 + 2)"
+];
+
+const INPUT_FNS : [&str; 6] = [
+    "fn (x: int) : int => 1048576",
+    "fn (x: int) : bool => x + 1",
+    "fn (x: t1, y: t2, z: t3) : anytype => x * y + (if true then z else x)",
+    "fn (x: unit, y: t) : ttt => (y, x)",
+    "fn (x: bool, y: real) : a => z + w",
+    "fn (x: int) : int => fn (y: f) : hehe => y (y x)"
+];
+
+const INPUT_BINOPS : [&str; 8] = [
+    "1 = 1", "2 + 2", "x + y - z * x", "(~1 + 1289768) * (100 * variable)",
+    "1 + 1 + 1", "0 + ###", "x <= y", "cond1 andalso cond2 orelse cond3"
 ];
 
 #[test]
-fn well_formed() {
+fn check_atoms() {
     for input in INPUT_ATOMS {
-	expr_ok(input);
-    };
+	let expr_result = parse_expr(input);
+	assert!(expr_result.is_ok());
+    }
+}
+
+#[test]
+fn check_ifs() {
     for input in INPUT_IFS {
-	expr_ok(input);
+	assert!(matches!(parse_expr(input), Ok(ast::Expr::Branch{..})));
+    }
+}
+
+#[test]
+fn check_fns() {
+    for input in INPUT_FNS {
+	let parse_result = parse_expr(input);
+	assert!(
+	    matches!(parse_result, Ok(ast::Expr::Lambda{..})),
+	    "\nInput: { }\nGot: {:?}\n", input, parse_result 
+	);
     }
 }

@@ -8,7 +8,7 @@ fn check_one(input: &str, token: Token) {
     assert_eq!(lexer.slice(), input);
 }
 
-const INT_PAIRS : [(&str, i64); 9] = [
+const INT_PAIRS : [(&str, i64); 12] = [
     ("02020112", 2020112),
     ("0xAF7926", 0xaf7926),
     ("0x000ABCD", 0xabcd),
@@ -17,17 +17,21 @@ const INT_PAIRS : [(&str, i64); 9] = [
     ("127436", 127436),
     ("91746", 91746),
     ("12345", 12345),
-    ("0", 0)
+    ("0", 0),
+    ("~0", 0),
+    ("~1023", -1023),
+    ("~0xFFF", -0xfff)
 ];
 
-const IDENTS: [&str; 21]= [
+const IDENTS: [&str; 24]= [
     "abfuwegvdw", "AYUSDFIS", "aGgiIGoVoD",
     "A12796132_'", "B'_'_'_'_", "C1s1j7n8O9",
     "llllllllll", "wtf", "decoy_rubberband",
     "derive_macro", "lololol", "mitochondria",
     "Ahhhhhhh", "folder''", "map''",
     "not2", "anotb", "notnot",
-    "ifthenelse", "hehe", "h1h3oi4bh54o"
+    "ifthenelse", "hehe", "h1h3oi4bh54o",
+    "????", "#@%%%@", "&&&"
 ];
 
 #[test]

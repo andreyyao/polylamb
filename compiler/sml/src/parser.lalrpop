@@ -49,7 +49,7 @@ pub Expr: ast::Expr = {
 
 // Lambda expressions. Expression body extends as far as possible
 Expr2: ast::Expr = {
-    "fn" <p: Pattern> ":" <t: "ident"> "=>" <e: Expr3> =>
+    "fn" <p: Pattern> ":" <t: "ident"> "=>" <e: Expr> =>
     	 ast::Expr::Lambda{ args: p,
 	 		    body: Box::new(e),
 			    typ:  ast::Typ::Ident(t.to_string()) },
@@ -101,10 +101,8 @@ CommaSepMulti<T>: Vec<T> = {
 }
 
 Pattern: Vec<ast::Annot> = {
-    <some: CommaSepMulti<Annot>> => some,
-    "(" <v: "ident"> ":" <t: "ident"> ")" =>
-        vec![ast::Annot{ var: v.to_string(),
-			 typ: ast::Typ::Ident(t.to_string()) }],
+    "(" <multi: CommaSepMulti<Annot>> ")" => multi,
+    "(" <a: Annot> ")" => vec![a],
     "(" ")" => vec![]
 }
 
