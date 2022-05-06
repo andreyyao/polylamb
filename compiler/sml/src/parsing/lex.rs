@@ -131,8 +131,16 @@ pub type LexicalError = usize;
 // Wraps the lexer in a self-defined struct. Otherwise
 // Rust complains about implementing Iterator trait for
 // Lexer<Token> struct, neither of which I created.
-pub struct LexerWrap<'a> { pub lexer: Lexer<'a, Token<'a>> }
+pub struct LexerWrap<'a> { lexer: Lexer<'a, Token<'a>> }
 
+impl<'a> LexerWrap<'a> {
+    pub fn new (input: &'a str) -> Self {
+	LexerWrap { lexer: Token::lexer(input) }
+    }
+}
+
+// Deref and DerefMut are implemented so one can call Lexer
+// functions on LexerWrap
 impl<'a> Deref for LexerWrap<'a> {
     type Target = Lexer<'a, Token<'a>>;
     fn deref(&self) -> &Self::Target {

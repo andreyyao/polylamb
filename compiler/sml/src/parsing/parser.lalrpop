@@ -1,4 +1,4 @@
-use crate::{ast, lex, parse::utils};
+use crate::parsing::{ast, lex, parse::utils};
 
 grammar<'a>;
 
@@ -36,58 +36,58 @@ pub Prog: ast::Prog = {
 }
 
 pub ValBind: ast::ValBind = {
-    "val" <r: "rec"?> <v: "ident"> "=" <e: Expr> =>
+    "val" <r: "rec"?> <v: "ident"> "=" <e: ValExpr> =>
         ast::ValBind { id: v.to_string(), exp: e, rec: r.is_some() }
 }
 
-pub Expr: ast::Expr = {
-    <e: Expr2> => e,
-    <e: ExprIf> => e
+pub ValExpr: ast::Expr = {
+    <e: ValExpr2> => e,
+    <e: ValExprIf> => e
 }
 
 //////// Precedence babyyyy ////////
 
 // Lambda expressions. Expression body extends as far as possible
-Expr2: ast::Expr = {
-    "fn" <p: Pattern> ":" <t: "ident"> "=>" <e: Expr> =>
+ValExpr2: ast::Expr = {
+    "fn" <p: Pattern> "=>" <e: ValExpr> =>
     	 ast::Expr::Lambda{ args: p,
 	 		    body: Box::new(e),
-			    typ:  ast::Typ::Ident(t.to_string()) },
-    <e: Expr3> => e
+			    typ:  ast::Typ::Unknown },
+    <e: ValExpr3> => e
 }
 
 // Binops with andalso orelse, precedence 3, left assoc
-Expr3: ast::Expr = {
-    <l: Expr3> <o: "infix3"> <r:Expr4> => utils::make_binop(l, o,  r),
-    <e: Expr4> => e
+ValExpr3: ast::Expr = {
+    <l: ValExpr3> <o: "infix3"> <r:ValExpr4> => utils::make_binop(l, o, r),
+    <e: ValExpr4> => e
 }
 
 // Binops with < > <= >= = <>, precedence 4, left assoc
-Expr4: ast::Expr = {
-    <l: Expr4> <o: "infix4"> <r:Expr6> => utils::make_binop(l, o, r),
-    <l: Expr4> "=" <r:Expr6> => utils::make_binop(l, "=", r),
-    <e: Expr6> => e
+ValExpr4: ast::Expr = {
+    <l: ValExpr4> <o: "infix4"> <r: ValExpr6> => utils::make_binop(l, o, r),
+    <l: ValExpr4> "=" <r: ValExpr6> => utils::make_binop(l, "=", r),
+    <e: ValExpr6> => e
 }
 
 // Binops with + -, precedence 6, left assoc
-Expr6: ast::Expr = {
-    <l: Expr6> <o: "infix6"> <r:Expr7> => utils::make_binop(l, o, r),
-    <e: Expr7> => e
+ValExpr6: ast::Expr = {
+    <l: ValExpr6> <o: "infix6"> <r: ValExpr7> => utils::make_binop(l, o, r),
+    <e: ValExpr7> => e
 }
 
 // Binops with *, precedence 7, left assoc
-Expr7: ast::Expr = {
-    <l: Expr7> "*" <r:Expr8> => utils::make_binop(l, "*", r),
-    <e: Expr8> => e
+ValExpr7: ast::Expr = {
+    <l: ValExpr7> "*" <r: ValExpr8> => utils::make_binop(l, "*", r),
+    <e: ValExpr8> => e
 }
 
 //Function application, precedence 8, left assoc
-Expr8: ast::Expr = {
-    <e1: Expr8> <e2: ExprAtom> =>
+ValExpr8: ast::Expr = {
+    <e1: ValExpr8> <e2: ValExprAtom> =>
         ast::Expr::App{ fun: Box::new(e1),
 			arg: Box::new(e2),
 			typ: ast::Typ::Unknown },
-    <e: ExprAtom> => e
+    <e: ValExprAtom> => e
 }
 
 ////////////////////////////////////
@@ -115,8 +115,8 @@ Annot: ast::Annot = {
 
 ////////////////////////////////////
 
-ExprIf: ast::Expr = {
-    "if" <e1: Expr> "then" <e2: Expr> "else" <e3: Expr> =>
+ValExprIf: ast::Expr = {
+    "if" <e1: ValExpr> "then" <e2: ValExpr> "else" <e3: ValExpr> =>
     	 ast::Expr::Branch{ cond: Box::new(e1),
 	 		    br_t: Box::new(e2),
 			    br_f: Box::new(e3),
@@ -124,7 +124,7 @@ ExprIf: ast::Expr = {
 }
 
 // Atomic expressions have no ambiguities. Highest precedence
-ExprAtom: ast::Expr = {
+ValExprAtom: ast::Expr = {
     // Constant unit
     "(" ")" =>
         ast::Expr::Con{ constnt: ast::Constant::Unit,
@@ -138,8 +138,8 @@ ExprAtom: ast::Expr = {
     "ident" =>
         ast::Expr::Var{ id: <>.to_string(),
 	                typ: ast::Typ::Unknown },
-    "(" <es: CommaSepMulti<Expr>> ")" =>
-    	ast::Expr::Tuple{ coords: es,
+    "(" <es: CommaSepMulti<ValExpr>> ")" =>
+    	ast::Expr::Tuple{ entries: es,
 			  typ: ast::Typ::Unknown },
-    "(" <e: Expr> ")" => e,
+    "(" <e: ValExpr> ")" => e,
 }

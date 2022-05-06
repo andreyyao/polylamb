@@ -1,9 +1,12 @@
 
 pub type Id = String;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Typ {
     Unknown,
+    Int,
+    Bool,
+    Unit,
     Ident(String),
     Tuple(Vec<Typ>),
     Arrow(Box<Typ>, Box<Typ>)
@@ -42,15 +45,15 @@ pub struct ValBind { pub id: Id, pub exp: Expr, pub rec: bool }
 #[derive(Debug, PartialEq)]
 pub enum Expr {
     /// Constants 
-    Con{ constnt: Constant, typ: Typ },
+    Con { constnt: Constant, typ: Typ },
     /// Identifiers aka variables
-    Var{ id: Id, typ: Typ },
+    Var { id: Id, typ: Typ },
     /// Function application
     App { fun: Box<Expr>, arg: Box<Expr>, typ: Typ },
     /// `Let valbind+ in body end`
     Let { bindings: Vec<ValBind>, body: Box<Expr> },
     /// Tuples, n >= 2
-    Tuple{ coords: Vec<Expr>, typ: Typ },
+    Tuple{ entries: Vec<Expr>, typ: Typ },
     /// Binary operations
     Binop{ op: Binary, lhs: Box<Expr>, rhs: Box<Expr>, typ: Typ },
     /// Anonymous functions

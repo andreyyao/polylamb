@@ -1,5 +1,5 @@
 extern crate sml;
-use sml::lex::Token;
+use sml::parsing::lex::Token;
 use logos::Logos;
 
 fn check_one(input: &str, token: Token) {
@@ -50,7 +50,7 @@ fn bool_lits() {
 #[test]
 fn idents() {
     for input in IDENTS {
-	check_one(input, Token::Ident(&input));
+	check_one(input, Token::Ident(input));
     }
 }
 
