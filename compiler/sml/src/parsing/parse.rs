@@ -14,7 +14,7 @@ pub mod utils {
 
 type ParseError<'a> = lalrpop_util::ParseError<usize, Token<'a>, usize>;
 
-pub fn parse_expr(input: &str) -> Result<ast::Expr, ParseError> {
+pub fn parse_valexpr(input: &str) -> Result<ast::Expr, ParseError> {
     let lexer = LexerWrap::new(input);
     parser::ValExprParser::new().parse(lexer)
 }

@@ -67,8 +67,12 @@ pub enum Token<'a> {
     Infix3(&'a str),
 
     /// Identifiers
-    #[regex(r"[!%&\$#\+-/:<=>?@\\~`\^\|\*]+|([a-zA-Z'][0-9a-zA-Z_']*)", |lex| lex.slice())]
+    #[regex(r"[a-zA-Z][0-9a-zA-Z_']*", |lex| lex.slice())]
     Ident(&'a str),
+    
+    /// Polymorphic type variables
+    #[regex(r"'[0-9a-zA-Z_']*", |lex| lex.slice())]
+    TypVar(&'a str),
 
     /// Integer literals
     #[regex(r"\~?((0x[`0-9A-F]+)|([0-9]+))", token_int_lit)]
@@ -110,6 +114,11 @@ pub enum Token<'a> {
     #[token("withtype")] Withtype,
     #[token("while")] While,
     #[token("fn")] Fn,
+
+    // Built-in types
+    #[token("int")] TInt,
+    #[token("bool")] TBool,
+    #[token("unit")] TUnit,
 
     // Logos requires one token variant to handle errors,
     // it can be named anything you wish.

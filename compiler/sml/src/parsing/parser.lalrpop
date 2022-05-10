@@ -19,6 +19,7 @@ extern {
     "infix4"=> lex::Token::Infix4(<&'a str>),
     "infix6"=> lex::Token::Infix6(<&'a str>),
     "ident" => lex::Token::Ident(<&'a str>),
+    "typVar"=> lex::Token::TypVar(<&'a str>),
     "intLit"   => lex::Token::IntLit(<i64>),
     "boolLit"  => lex::Token::BoolLit(<bool>),
     "if"    => lex::Token::If,
@@ -27,6 +28,9 @@ extern {
     "val"   => lex::Token::Val,
     "rec"   => lex::Token::Rec,
     "fn"    => lex::Token::Fn,
+    "int"   => lex::Token::TInt,
+    "bool"  => lex::Token::TBool,
+    "unit"  => lex::Token::TUnit,
     "error" => lex::Token::Error
   }
 }
@@ -108,9 +112,9 @@ Pattern: Vec<ast::Annot> = {
 
 // Type annotated identifier.
 Annot: ast::Annot = {
-    <v1: "ident"> ":" <v2: "ident"> =>
+    <v1: "ident"> ":" <t: TypExpr> =>
     	 ast::Annot{ var: v1.to_string(),
-	 	     typ: ast::Typ::Ident(v2.to_string()) }
+	 	     typ: t }
 }
 
 ////////////////////////////////////
@@ -142,4 +146,33 @@ ValExprAtom: ast::Expr = {
     	ast::Expr::Tuple{ entries: es,
 			  typ: ast::Typ::Unknown },
     "(" <e: ValExpr> ")" => e,
+}
+
+
+///////////////////////////////////////////////////
+///////////////////////////////////////////////////
+///////////////////////////////////////////////////
+///////////////////////////////////////////////////
+
+TypExpr: ast::Typ = {
+    <t: TypExprProd> => ast::Typ::Tuple(t),
+    <t: TypExprAtom> => t
+}
+
+TypExprProd: Vec<ast::Typ> = {
+    <t1: TypExprProd> "*" <t2: TypExprAtom> =>
+    	 { let mut t1 = t1; t1.push(t2); t1 }
+}
+
+TypExprAtom: ast::Typ = {
+    "int" => ast::Typ::Int,
+    "bool" => ast::Typ::Bool,
+    "unit" => ast::Typ::Unit,
+    "(" <t: TypExpr> ")" => t,
+    <tv: "typVar"> =>
+    	 if <>.starts_with("''") {
+	     ast::Typ::PolyEq(<>.to_string())
+	 } else {
+	     ast::Typ::Poly(<>.to_string())
+	 }
 }

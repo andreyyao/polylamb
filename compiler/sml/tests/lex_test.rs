@@ -23,15 +23,14 @@ const INT_PAIRS : [(&str, i64); 12] = [
     ("~0xFFF", -0xfff)
 ];
 
-const IDENTS: [&str; 24]= [
+const IDENTS: [&str; 21]= [
     "abfuwegvdw", "AYUSDFIS", "aGgiIGoVoD",
     "A12796132_'", "B'_'_'_'_", "C1s1j7n8O9",
     "llllllllll", "wtf", "decoy_rubberband",
     "derive_macro", "lololol", "mitochondria",
     "Ahhhhhhh", "folder''", "map''",
     "not2", "anotb", "notnot",
-    "ifthenelse", "hehe", "h1h3oi4bh54o",
-    "????", "#@%%%@", "&&&"
+    "ifthenelse", "hehe", "h1h3oi4bh54o"
 ];
 
 #[test]

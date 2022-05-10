@@ -1,5 +1,5 @@
 mod util;
-use sml::parsing::{ast, parse::{parse_expr, parse_prog}};
+use sml::parsing::{ast, parse::{parse_valexpr, parse_prog}};
 
 
 const INPUT_ATOMS : [&str; 15] = [
@@ -14,28 +14,28 @@ const INPUT_IFS : [&str; 6] = [
     "if 120937 then x + y + z else (fn (x : bool) => not x)",
     "if b then b else if b then b else b",
     "if (x * y <= z = 1) then a else ((((), ())))",
-    "if ####### then 999 else 12479468",
+    "if teehee then 999 else 12479468",
     "if (0,0,(),9) then hehehehe else (not 1 + 2)"
 ];
 
 const INPUT_FNS : [&str; 6] = [
     "fn (x: int) => 1048576",
     "fn (x: int) => x + 1",
-    "fn (x: t1, y: t2, z: t3) => x * y + (if true then z else x)",
-    "fn (x: unit, y: t) => (y, x)",
-    "fn (x: bool, y: real) => z + w",
-    "fn (x: int) => fn (y: f) => y (y x)"
+    "fn (x: 't1, y: 't2, z: 't3) => x * y + (if true then z else x)",
+    "fn (x: unit, y: 't) => (y, x)",
+    "fn (x: bool, y: 'real) => z + w",
+    "fn (x: int) => fn (y: 'f) => y (y x)"
 ];
 
 const INPUT_BINOPS : [&str; 8] = [
     "1 = 1", "2 + 2", "x + y - z * x", "(~1 + 1289768) * (100 * variable)",
-    "1 + 1 + 1", "0 + ###", "x <= y", "cond1 andalso cond2 orelse cond3"
+    "1 + 1 + 1", "0 + aaa", "x <= y", "cond1 andalso cond2 orelse cond3"
 ];
 
 #[test]
 fn check_atoms() {
     for input in INPUT_ATOMS {
-	let expr_result = parse_expr(input);
+	let expr_result = parse_valexpr(input);
 	assert!(expr_result.is_ok());
     }
 }
@@ -43,14 +43,14 @@ fn check_atoms() {
 #[test]
 fn check_ifs() {
     for input in INPUT_IFS {
-	assert!(matches!(parse_expr(input), Ok(ast::Expr::Branch{..})));
+	assert!(matches!(parse_valexpr(input), Ok(ast::Expr::Branch{..})));
     }
 }
 
 #[test]
 fn check_fns() {
     for input in INPUT_FNS {
-	let parse_result = parse_expr(input);
+	let parse_result = parse_valexpr(input);
 	assert!(
 	    matches!(parse_result, Ok(ast::Expr::Lambda{..})),
 	    "\nInput: { }\nGot: {:?}\n", input, parse_result 
@@ -61,7 +61,7 @@ fn check_fns() {
 #[test]
 fn check_binops() {
     for input in INPUT_BINOPS {
-	let parse_result = parse_expr(input);
+	let parse_result = parse_valexpr(input);
 	assert!(
 	    matches!(parse_result, Ok(ast::Expr::Binop{..})),
 	    "\nInput: { }\nGot: {:?}\n", input, parse_result 

@@ -7,7 +7,8 @@ pub enum Typ {
     Int,
     Bool,
     Unit,
-    Ident(String),
+    Poly(String), // Polymorphic types
+    PolyEq(String), // Equality types
     Tuple(Vec<Typ>),
     Arrow(Box<Typ>, Box<Typ>)
 }
@@ -51,7 +52,7 @@ pub enum Expr {
     /// Function application
     App { fun: Box<Expr>, arg: Box<Expr>, typ: Typ },
     /// `Let valbind+ in body end`
-    Let { bindings: Vec<ValBind>, body: Box<Expr> },
+    Let { bindings: Vec<ValBind>, body: Box<Expr>, typ: Typ },
     /// Tuples, n >= 2
     Tuple{ entries: Vec<Expr>, typ: Typ },
     /// Binary operations
@@ -99,4 +100,9 @@ impl Binary {
 	    _ => panic!(" At the Disco")
 	}
     }
+}
+
+
+impl Typ {
+   
 }
