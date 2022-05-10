@@ -1,8 +1,8 @@
-lalrpop_mod!(pub parser, "/parsing/parser.rs"); // synthesized by LALRPOP
-use crate::parsing::{ast, lex::{LexerWrap, Token}};
+lalrpop_mod!(pub parser, "/sml/parser.rs"); // synthesized by LALRPOP
+use crate::sml::{ast, lex::{LexerWrap, Token}};
 
 pub mod utils {
-    use crate::parsing::ast::*;
+    use crate::sml::ast::*;
 
     pub fn make_binop(l: Expr, op: &str, r: Expr) -> Expr {
 	Expr::Binop { op: Binary::of_str(op),

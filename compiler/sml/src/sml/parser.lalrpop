@@ -1,4 +1,4 @@
-use crate::parsing::{ast, lex, parse::utils};
+use crate::sml::{ast, lex, parse::utils};
 
 grammar<'a>;
 
@@ -47,6 +47,14 @@ pub ValBind: ast::ValBind = {
 pub ValExpr: ast::Expr = {
     <e: ValExpr2> => e,
     <e: ValExprIf> => e
+}
+
+ValExprIf: ast::Expr = {
+    "if" <e1: ValExpr> "then" <e2: ValExpr> "else" <e3: ValExpr> =>
+    	 ast::Expr::Branch{ cond: Box::new(e1),
+	 		    br_t: Box::new(e2),
+			    br_f: Box::new(e3),
+			    typ:  ast::Typ::Unknown }
 }
 
 //////// Precedence babyyyy ////////
@@ -118,14 +126,6 @@ Annot: ast::Annot = {
 }
 
 ////////////////////////////////////
-
-ValExprIf: ast::Expr = {
-    "if" <e1: ValExpr> "then" <e2: ValExpr> "else" <e3: ValExpr> =>
-    	 ast::Expr::Branch{ cond: Box::new(e1),
-	 		    br_t: Box::new(e2),
-			    br_f: Box::new(e3),
-			    typ:  ast::Typ::Unknown }
-}
 
 // Atomic expressions have no ambiguities. Highest precedence
 ValExprAtom: ast::Expr = {

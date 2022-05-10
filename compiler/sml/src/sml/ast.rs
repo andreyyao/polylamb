@@ -104,5 +104,15 @@ impl Binary {
 
 
 impl Typ {
-   
+    /// Returns true if one can compare types of this kind.
+    /// panics if input type is `Unknown`
+    pub fn is_equality_type(&self) -> bool {
+	match self {
+	    Typ::Unknown => panic!(), // Shouldn't happen
+	    Typ::PolyEq(_) => true,
+	    Typ::Arrow(_, _) => false,
+	    Typ::Tuple(typs) => typs.iter().all(|t| t.is_equality_type()),
+	    _ => false
+	}
+    }
 }

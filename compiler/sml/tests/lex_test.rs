@@ -1,5 +1,5 @@
 extern crate sml;
-use sml::parsing::lex::Token;
+use sml::sml::lex::Token;
 use logos::Logos;
 
 fn check_one(input: &str, token: Token) {
@@ -70,7 +70,8 @@ fn keywords() {
     use Token::*;
     let pairs = [
 	("if", If), ("then", Then), ("else", Else),
-	("val", Val), ("rec", Rec), ("fn", Fn)
+	("val", Val), ("rec", Rec), ("fn", Fn),
+	("int", TInt), ("bool", TBool), ("unit", TUnit)
     ];
     for (input, expect) in pairs {
 	check_one(input, expect);
