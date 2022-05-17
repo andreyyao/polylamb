@@ -54,32 +54,34 @@ pub enum Expr {
     /// `Let valbind+ in body end`
     Let { bindings: Vec<ValBind>, body: Box<Expr>, typ: Typ },
     /// Tuples, n >= 2
-    Tuple{ entries: Vec<Expr>, typ: Typ },
+    Tuple { entries: Vec<Expr>, typ: Typ },
     /// Binary operations
-    Binop{ op: Binary, lhs: Box<Expr>, rhs: Box<Expr>, typ: Typ },
+    Binop { op: Binary, lhs: Box<Expr>, rhs: Box<Expr>, typ: Typ },
     /// Anonymous functions
-    Lambda{ args: Vec<Annot>, body: Box<Expr>, typ: Typ },
+    Lambda { args: Vec<Annot>, body: Box<Expr>, typ: Typ },
     /// `if b then e1 else e2`
-    Branch{ cond: Box<Expr>, br_t: Box<Expr>, br_f: Box<Expr>, typ: Typ },
+    Branch { cond: Box<Expr>, br_t: Box<Expr>, br_f: Box<Expr>, typ: Typ },
 }
 
 pub type Prog = Vec<ValBind>;
 
 
 impl Expr {
-
-    // /* Immediate children of this expression */
-    // fn children(&self) -> Vec<&Expr> {
-    // 	match self {
-    // 	    Data::Lit{ constnt: _ } => vec![],
-    // 	    Data::Unop{ op: _, kid} => vec![kid],
-    // 	    Data::Binop{ op: _, lhs, rhs } => vec![lhs, rhs],
-    // 	    Data::Lambda{ args: _, body } => vec![body],
-    // 	    Data::Branch{ cond, br_t, br_f } =>vec![cond, br_t, br_f],
-    // 	    Data::Let { bindings: _, body } => vec![exp, body]
-    // 	}
-    // }
+    /// `e.typ()` is the type of this expression `e`
+    pub fn typ(&self) -> &Typ {
+	match self {
+	    | Expr::Con { typ, .. }
+	    | Expr::Var { typ, .. }
+	    | Expr::App { typ, .. }
+	    | Expr::Let { typ, .. }
+	    | Expr::Tuple { typ, .. }
+	    | Expr::Binop { typ, .. }
+	    | Expr::Lambda { typ, .. }
+	    | Expr::Branch { typ, .. } => typ
+	}
+    }
 }
+
 
 impl Binary {
     /// Maps string rep of binops to their enum counterparts

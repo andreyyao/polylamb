@@ -1,15 +1,16 @@
 use crate::sml::ast::{Typ, Expr, Binary, Constant};
-use std::collections::{HashSet, HashMap};
+use std::{collections::HashMap};
 
 /// Typing context
 pub struct Context {
-    // Top-level type identifiers' bindings stay fixed
-    default: HashSet<String>,
-    // All the bindings, basically
-    bindings: HashMap<String, Typ>,
+    /// Binding from value id to type, basically
+    vid2typ: HashMap<String, Typ>,
+    /// Binding from polymorphic type variables to type
+    tid2typ: HashMap<String, Typ>,
     /// What to revert to. `None` means to remove it
     /// from `bindings`
-    diffs: Vec<Vec<(String, Option<Typ>)>>
+    v_diffs: Vec<Vec<(String, Option<Typ>)>>,
+    t_diffs: Vec<Vec<(String, Option<Typ>)>>
 }
 
 
@@ -17,105 +18,139 @@ impl Context {
 
     /// Initialize
     pub fn init(&mut self) {
-	self.default = HashSet::new();
-	self.bindings = HashMap::new();
-	self.diffs = vec![];
+	self.vid2typ = HashMap::new();
+	self.tid2typ = HashMap::new();
+	self.v_diffs = vec![];
+	self.t_diffs = vec![];
     }
 
-    pub fn get(&self, id: &String) -> &Typ {
-	self.bindings.get(id).unwrap()
+    pub fn typ_of_vid(&self, id: &str) -> &Typ {
+	self.vid2typ.get(id).unwrap()
     }
 
-    /// Bind a to the current context
-    pub fn bind(&mut self, id: &String, typ: &Typ) {
-	if self.default.contains(id) {
-	    // Panics when trying to change a default binding
-	    // TODO throw proper error instead
-	    panic!();
-	} else {
-	    let old = self.bindings.insert(id.clone(), typ.clone());
-	    let top = self.diffs.last_mut().unwrap();
-	    top.push((id.clone(), old));
-	}
+    pub fn typ_of_tid(&self, id: &str) -> &Typ {
+	self.tid2typ.get(id).unwrap()
+    }
+
+    /// Bind a vid to the current context
+    pub fn bind_vid(&mut self, vid: &str, typ: &Typ) {
+	let old = self.vid2typ.insert(vid.to_string(), typ.clone());
+	let top = self.v_diffs.last_mut().unwrap();
+	top.push((vid.to_string(), old));
+    }
+
+    /// Bind a tid to the current context
+    pub fn bind_tid(&mut self, tid: &str, typ: &Typ) {
+	let old = self.tid2typ.insert(tid.to_string(), typ.clone());
+	let top = self.t_diffs.last_mut().unwrap();
+	top.push((tid.to_string(), old));
     }
 
     /// Enters a local context
     pub fn enter(&mut self) {
-	self.diffs.push(vec![]);
+	self.v_diffs.push(vec![]);
+	self.t_diffs.push(vec![]);
     }
 
     /// Exits from a local context and reverts to parent context
     pub fn exeunt(&mut self) {
-	let diff = self.diffs.pop().unwrap();
-	for (name, bind) in diff {
+	let v_diff = self.v_diffs.pop().unwrap();
+	for (name, bind) in v_diff {
 	    match bind {
-		Some(typ) => self.bindings.insert(name, typ),
-		None => self.bindings.remove(&name)
+		Some(typ) => self.vid2typ.insert(name, typ),
+		None => self.vid2typ.remove(&name)
+	    };
+	};
+	let t_diff = self.t_diffs.pop().unwrap();
+	for (name, bind) in t_diff {
+	    match bind {
+		Some(typ) => self.tid2typ.insert(name, typ),
+		None => self.tid2typ.remove(&name)
 	    };
 	}
     }
 }
 
+
+/// Type coercion before type checking function application
+/// This maps type variables to appropriate stuff if possible
+/// It tries to fit `candidate` into `constraint` and adds the
+/// Appropriate mappings into `context` if possible.
+/// Panics if not possible
+fn coerce(candidate: &Typ, constraint: &Typ, context: &mut Context) {
+    use Typ::*;
+    match (candidate, constraint) {
+	(Int, Int) | (Bool, Bool) | (Unit, Unit) => { },
+	(PolyEq(s1), PolyEq(s2)) | (PolyEq(s1), Poly(s2)) => {
+	    context.bind_tid(s2, &PolyEq(s1.to_string()));
+	},
+	(Poly(s1), Poly(s2)) => {
+	    context.bind_tid(s2, &Poly(s1.to_string()));
+	},
+	(Tuple)
+    }
+}
+
+
 // TODO throw proper error instead of panicking
 /// Type annotates an expression. Returns `typ` which is the type of `expr`
 /// Panics if `expr` is not well-typed
-pub fn type_expr<'a>(expr: &'a mut Expr, context: &mut Context) -> &'a Typ {
+pub fn type_expr(expr: &mut Expr, context: &mut Context) {
     match expr {
 	Expr::Con { constnt, typ } => {
 	    *typ = match constnt {
 		Constant::Unit => Typ::Unit,
 		Constant::Integer(_i) => Typ::Int,
 		Constant::Boolean(_b) => Typ::Bool
-	    };
-	    typ
+	    }
 	},
 	Expr::Var { id, typ } => {
-	    *typ = context.get(id).to_owned();
-	    typ
+	    *typ = context.typ_of_vid(id).to_owned()
 	},
-	// Coercion
+	// Coercion TODO take care of polymorphism
 	Expr::App { fun, arg, typ } => {
-	    let fun_typ = type_expr(fun, context);
-	    let arg_typ = type_expr(arg, context);
-	    *typ = if let Typ::Arrow(at, bt) = fun_typ {
-		if *arg_typ == **at {
+	    type_expr(fun, context);
+	    type_expr(arg, context);
+	    *typ = if let Typ::Arrow(at, bt) = fun.typ() {
+		if *arg.typ() == **at {
 		    (*bt.as_ref()).clone()
 		} else {
 		    panic!();
 		}
 	    } else {
 		panic!();
-	    };
-	    typ
+	    }
 	},
 	Expr::Let { bindings, body, typ } => {
 	    for valbind in bindings {
 		context.enter();
-		let tipe = type_expr(&mut valbind.exp, context);
+		type_expr(&mut valbind.exp, context);
 		context.exeunt();
-		context.bind(&valbind.id, tipe);
+		context.bind_vid(&valbind.id, valbind.exp.typ());
 	    }
-	    *typ = type_expr(body, context).clone();
-	    typ
+	    type_expr(body, context);
+	    *typ = body.typ().clone();
 	},
 	Expr::Tuple { entries, typ } => {
 	    let mut typs = vec![];
 	    for entry in entries {
 		context.enter();
-		typs.push(type_expr(entry, context).clone());
+		type_expr(entry, context);
+		typs.push(entry.typ().clone());
 		context.exeunt();
 	    }
 	    *typ = Typ::Tuple(typs);
-	    typ
 	},
 	Expr::Binop { op, lhs, rhs, typ } => {
 	    use Binary::*;
 	    context.enter();
-	    let typ_l = type_expr(lhs, context);
+	    type_expr(lhs, context);
 	    context.exeunt();
 	    context.enter();
-	    let typ_r = type_expr(rhs, context);
+	    type_expr(rhs, context);
 	    context.exeunt();
+	    let typ_l = lhs.typ();
+	    let typ_r = rhs.typ();
 	    *typ = match op {
 		Add | Sub | Mul => {
 		    match (typ_l, typ_r) {
@@ -142,30 +177,29 @@ pub fn type_expr<'a>(expr: &'a mut Expr, context: &mut Context) -> &'a Typ {
 			panic!()
 		    }
 		}
-	    };
-	    typ    
+	    }
 	},
 	Expr::Lambda { args, body, typ } => {
 	    for arg in args {
-		context.bind(&arg.var, &arg.typ);
+		context.bind_vid(&arg.var, &arg.typ);
 	    }
-	    *typ = type_expr(body, context).clone();
-	    typ
+	    type_expr(body, context);
+	    *typ = body.typ().clone()
 	},
 	Expr::Branch { cond, br_t, br_f, typ } => {
 	    context.enter();
-	    let t_cond = type_expr(cond, context);
+	    type_expr(cond, context);
 	    context.exeunt();
+	    let t_cond = cond.typ();
 	    if matches!(t_cond, Typ::Bool) {
 		context.enter();
-		let t_true = type_expr(br_t, context);
+		type_expr(br_t, context);
 		context.exeunt();
 		context.enter();
-		let t_false = type_expr(br_f, context);
+		type_expr(br_f, context);
 		context.exeunt();
-		if t_true == t_false {
-		    *typ = t_true.clone();
-		    typ
+		if br_t.typ() == br_f.typ() {
+		    *typ = br_t.typ().clone()
 		} else {
 		    panic!()
 		}
