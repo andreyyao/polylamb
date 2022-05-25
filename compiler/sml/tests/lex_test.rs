@@ -71,7 +71,7 @@ fn keywords() {
     let pairs = [
 	("if", If), ("then", Then), ("else", Else),
 	("val", Val), ("rec", Rec), ("fn", Fn),
-	("int", TInt), ("bool", TBool), ("unit", TUnit)
+	("int", TInt), ("bool", TBool)
     ];
     for (input, expect) in pairs {
 	check_one(input, expect);

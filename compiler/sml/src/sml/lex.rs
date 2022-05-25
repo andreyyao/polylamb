@@ -118,7 +118,6 @@ pub enum Token<'a> {
     // Built-in types
     #[token("int")] TInt,
     #[token("bool")] TBool,
-    #[token("unit")] TUnit,
 
     // Logos requires one token variant to handle errors,
     // it can be named anything you wish.

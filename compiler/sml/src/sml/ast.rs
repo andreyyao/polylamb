@@ -1,5 +1,5 @@
 
-pub type Id = String;
+type Id = String;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Typ {
@@ -20,7 +20,6 @@ pub enum Typ {
 /// Literals ///
 #[derive(Debug, PartialEq)]
 pub enum Constant {
-    Unit,
     Integer(i64),
     Boolean(bool)
 }
@@ -50,7 +49,7 @@ pub enum Expr {
     /// Identifiers aka variables
     Var { id: Id, typ: Typ },
     /// Function application
-    App { fun: Box<Expr>, arg: Box<Expr>, typ: Typ },
+    App { fun: Box<Expr>, arg: Box<Expr>, foralls: Vec<(Id, Typ)>, typ: Typ },
     /// `Let valbind+ in body end`
     Let { bindings: Vec<ValBind>, body: Box<Expr>, typ: Typ },
     /// Tuples, n >= 2
@@ -58,7 +57,7 @@ pub enum Expr {
     /// Binary operations
     Binop { op: Binary, lhs: Box<Expr>, rhs: Box<Expr>, typ: Typ },
     /// Anonymous functions
-    Lambda { args: Vec<Annot>, body: Box<Expr>, typ: Typ },
+    Lambda { args: Vec<Annot>, body: Box<Expr>, foralls: Vec<Typ>, typ: Typ },
     /// `if b then e1 else e2`
     Branch { cond: Box<Expr>, br_t: Box<Expr>, br_f: Box<Expr>, typ: Typ },
 }
@@ -112,6 +111,8 @@ impl Typ {
 	match self {
 	    Typ::Unknown => panic!(), // Shouldn't happen
 	    Typ::PolyEq(_) => true,
+	    Typ::Bool => true,
+	    Typ::Int => true,
 	    Typ::Arrow(_, _) => false,
 	    Typ::Tuple(typs) => typs.iter().all(|t| t.is_equality_type()),
 	    _ => false

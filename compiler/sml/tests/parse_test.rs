@@ -4,25 +4,25 @@ use sml::sml::{ast, parse::{parse_valexpr, parse_prog}};
 
 const INPUT_ATOMS : [&str; 15] = [
     "haha", "decoy", "rubberband", "(2 + 4)",
-    "1", "x", "x_x", "()", "true", "false",
-    "((), (()), ((())))", "(2, 4, x)", "(\n\t\n)",
-    "(fn (x: int) => x + 1 * 3)", "(twice f 1)",
+    "1", "x", "x_x", "2", "true", "false",
+    "(1, 2)", "(2, 4, x)", "((0,0),(0,0))",
+    "(fn (x: int) => x + 1 * 3)", "(twice (f 1))",
 ];
 
 const INPUT_IFS : [&str; 6] = [
     "if b then 1 else 3",
     "if 120937 then x + y + z else (fn (x : bool) => not x)",
     "if b then b else if b then b else b",
-    "if (x * y <= z = 1) then a else ((((), ())))",
+    "if (x * y <= z = 1) then a else (((2, 4)))",
     "if teehee then 999 else 12479468",
-    "if (0,0,(),9) then hehehehe else (not 1 + 2)"
+    "if (0,0,9999 + 8,9) then hehehehe else (not 1 + 2)"
 ];
 
 const INPUT_FNS : [&str; 6] = [
     "fn (x: int) => 1048576",
     "fn (x: int) => x + 1",
     "fn (x: 't1, y: 't2, z: 't3) => x * y + (if true then z else x)",
-    "fn (x: unit, y: 't) => (y, x)",
+    "fn (x: bool, y: 't) => (y, x)",
     "fn (x: bool, y: 'real) => z + w",
     "fn (x: int) => fn (y: 'f) => y (y x)"
 ];

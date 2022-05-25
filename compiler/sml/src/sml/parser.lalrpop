@@ -27,10 +27,12 @@ extern {
     "else"  => lex::Token::Else,
     "val"   => lex::Token::Val,
     "rec"   => lex::Token::Rec,
+    "let"   => lex::Token::Let,
+    "in"    => lex::Token::In,
+    "end"   => lex::Token::End,
     "fn"    => lex::Token::Fn,
     "int"   => lex::Token::TInt,
     "bool"  => lex::Token::TBool,
-    "unit"  => lex::Token::TUnit,
     "error" => lex::Token::Error
   }
 }
@@ -57,6 +59,13 @@ ValExprIf: ast::Expr = {
 			    typ:  ast::Typ::Unknown }
 }
 
+ValExprLet: ast::Expr = {
+    "let" <bs: ValBind*> "in" <e: ValExpr> "end" =>
+    	  ast::Expr::Let{ bindings: bs,
+	  		  body: Box::new(e),
+			  typ: ast::Typ::Unknown }
+}
+
 //////// Precedence babyyyy ////////
 
 // Lambda expressions. Expression body extends as far as possible
@@ -64,6 +73,7 @@ ValExpr2: ast::Expr = {
     "fn" <p: Pattern> "=>" <e: ValExpr> =>
     	 ast::Expr::Lambda{ args: p,
 	 		    body: Box::new(e),
+			    foralls: vec![],
 			    typ:  ast::Typ::Unknown },
     <e: ValExpr3> => e
 }
@@ -98,6 +108,7 @@ ValExpr8: ast::Expr = {
     <e1: ValExpr8> <e2: ValExprAtom> =>
         ast::Expr::App{ fun: Box::new(e1),
 			arg: Box::new(e2),
+			foralls: vec![],
 			typ: ast::Typ::Unknown },
     <e: ValExprAtom> => e
 }
@@ -129,10 +140,6 @@ Annot: ast::Annot = {
 
 // Atomic expressions have no ambiguities. Highest precedence
 ValExprAtom: ast::Expr = {
-    // Constant unit
-    "(" ")" =>
-        ast::Expr::Con{ constnt: ast::Constant::Unit,
-    	     		typ: ast::Typ::Unknown },
     "intLit" =>
     	ast::Expr::Con{ constnt: ast::Constant::Integer(<>),
     	     		typ: ast::Typ::Unknown },
@@ -167,7 +174,6 @@ TypExprProd: Vec<ast::Typ> = {
 TypExprAtom: ast::Typ = {
     "int" => ast::Typ::Int,
     "bool" => ast::Typ::Bool,
-    "unit" => ast::Typ::Unit,
     "(" <t: TypExpr> ")" => t,
     <tv: "typVar"> =>
     	 if <>.starts_with("''") {
