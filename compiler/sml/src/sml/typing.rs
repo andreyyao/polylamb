@@ -48,7 +48,7 @@ pub fn type_expr(expr: &mut Expr, context: &mut Context<Typ>) {
 		typs.push(entry.typ().clone());
 		context.exeunt();
 	    }
-	    *typ = Typ::Tuple(typs);
+	    *typ = Typ::Prod(typs);
 	},
 	Expr::Binop { op, lhs, rhs, typ } => {
 	    use Binary::*;
@@ -117,9 +117,4 @@ pub fn type_expr(expr: &mut Expr, context: &mut Context<Typ>) {
 	    }
 	}
     }
-}
-
-
-fn explicify_foralls(expr: &mut Expr, context: &mut Context<Typ>) {
-    
 }

@@ -21,10 +21,11 @@ const INPUT_IFS : [&str; 6] = [
 const INPUT_FNS : [&str; 6] = [
     "fn (x: int) => 1048576",
     "fn (x: int) => x + 1",
-    "fn (x: 't1, y: 't2, z: 't3) => x * y + (if true then z else x)",
-    "fn (x: bool, y: 't) => (y, x)",
-    "fn (x: bool, y: 'real) => z + w",
-    "fn (x: int) => fn (y: 'f) => y (y x)"
+    /* "fn (x: 't1, y: 't2, z: 't3) => x * y + (if true then z else x)", */
+    "fn (x: bool, y: bool * int) => (y, x)",
+    "fn (x: bool, y: bool) => z + w",
+    "fn (x: int) => fn (y: int -> int) => y (y x)",
+    "fn (pair: int * int) => 0"
 ];
 
 const INPUT_BINOPS : [&str; 8] = [

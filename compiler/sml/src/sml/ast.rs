@@ -7,9 +7,9 @@ pub enum Typ {
     Int,
     Bool,
     Unit,
-    Poly(String), // Polymorphic types
-    PolyEq(String), // Equality types
-    Tuple(Vec<Typ>),
+    // Poly(String), // Polymorphic types
+    // PolyEq(String), // Equality types
+    Prod(Vec<Typ>),
     Arrow(Box<Typ>, Box<Typ>)
 }
 
@@ -49,7 +49,7 @@ pub enum Expr {
     /// Identifiers aka variables
     Var { id: Id, typ: Typ },
     /// Function application
-    App { fun: Box<Expr>, arg: Box<Expr>, foralls: Vec<(Id, Typ)>, typ: Typ },
+    App { fun: Box<Expr>, arg: Box<Expr>,/* foralls: Vec<(Id, Typ)>,*/ typ: Typ },
     /// `Let valbind+ in body end`
     Let { bindings: Vec<ValBind>, body: Box<Expr>, typ: Typ },
     /// Tuples, n >= 2
@@ -57,7 +57,7 @@ pub enum Expr {
     /// Binary operations
     Binop { op: Binary, lhs: Box<Expr>, rhs: Box<Expr>, typ: Typ },
     /// Anonymous functions
-    Lambda { args: Vec<Annot>, body: Box<Expr>, foralls: Vec<Typ>, typ: Typ },
+    Lambda { args: Vec<Annot>, body: Box<Expr>,/* foralls: Vec<Typ>,*/ typ: Typ },
     /// `if b then e1 else e2`
     Branch { cond: Box<Expr>, br_t: Box<Expr>, br_f: Box<Expr>, typ: Typ },
 }
@@ -110,12 +110,11 @@ impl Typ {
     pub fn is_equality_type(&self) -> bool {
 	match self {
 	    Typ::Unknown => panic!(), // Shouldn't happen
-	    Typ::PolyEq(_) => true,
-	    Typ::Bool => true,
 	    Typ::Int => true,
-	    Typ::Arrow(_, _) => false,
-	    Typ::Tuple(typs) => typs.iter().all(|t| t.is_equality_type()),
-	    _ => false
+	    Typ::Bool => true,
+	    Typ::Unit => true,
+	    Typ::Prod(ts) => ts.iter().all(|t| t.is_equality_type()),
+	    Typ::Arrow(_, _) => false
 	}
     }
 }

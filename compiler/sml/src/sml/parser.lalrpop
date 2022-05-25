@@ -73,7 +73,7 @@ ValExpr2: ast::Expr = {
     "fn" <p: Pattern> "=>" <e: ValExpr> =>
     	 ast::Expr::Lambda{ args: p,
 	 		    body: Box::new(e),
-			    foralls: vec![],
+			    /// foralls: vec![],
 			    typ:  ast::Typ::Unknown },
     <e: ValExpr3> => e
 }
@@ -108,7 +108,7 @@ ValExpr8: ast::Expr = {
     <e1: ValExpr8> <e2: ValExprAtom> =>
         ast::Expr::App{ fun: Box::new(e1),
 			arg: Box::new(e2),
-			foralls: vec![],
+			/// foralls: vec![],
 			typ: ast::Typ::Unknown },
     <e: ValExprAtom> => e
 }
@@ -162,23 +162,39 @@ ValExprAtom: ast::Expr = {
 ///////////////////////////////////////////////////
 
 TypExpr: ast::Typ = {
-    <t: TypExprProd> => ast::Typ::Tuple(t),
+    <t: TypExprArrow> => t
+}
+
+TypExprArrow: ast::Typ = {
+    <t1: TypExprProdOrAtom> "->" <t2: TypExprArrow> =>
+    	 ast::Typ::Arrow(Box::new(t1), Box::new(t2)),
+    <t: TypExprProdOrAtom> => t
+}
+
+TypExprProdOrAtom: ast::Typ = {
+    <t: TypExprProd> => t,
     <t: TypExprAtom> => t
 }
 
-TypExprProd: Vec<ast::Typ> = {
-    <t1: TypExprProd> "*" <t2: TypExprAtom> =>
-    	 { let mut t1 = t1; t1.push(t2); t1 }
+TypExprProd: ast::Typ = {
+    <ts: TypExprProdHelp> => ast::Typ::Prod(ts)
+}
+
+TypExprProdHelp: Vec<ast::Typ> = {
+    <ts: TypExprProdHelp> "*" <t: TypExprAtom> =>
+    	 { let mut ts = ts; ts.push(t); ts },
+    <t1: TypExprAtom> "*" <t2: TypExprAtom> =>
+    	 vec![t1, t2]
 }
 
 TypExprAtom: ast::Typ = {
     "int" => ast::Typ::Int,
     "bool" => ast::Typ::Bool,
-    "(" <t: TypExpr> ")" => t,
-    <tv: "typVar"> =>
-    	 if <>.starts_with("''") {
-	     ast::Typ::PolyEq(<>.to_string())
-	 } else {
-	     ast::Typ::Poly(<>.to_string())
-	 }
+    "(" <t: TypExpr> ")" => t
+    // <tv: "typVar"> =>
+    //	 if <>.starts_with("''") {
+    //	     ast::Typ::PolyEq(<>.to_string())
+    //	 } else {
+    //	     ast::Typ::Poly(<>.to_string())
+    //	 }
 }
