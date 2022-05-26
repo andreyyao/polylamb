@@ -13,9 +13,8 @@ pub struct Context<T: Clone> {
 impl<T: Clone> Context<T> {
 
     /// Initialize
-    pub fn init(&mut self) {
-	self.map = HashMap::new();
-	self.diffs = vec![];
+    pub fn new() -> Context<T> {
+	Context { map: HashMap::new(), diffs: vec![vec![]] }
     }
 
     /// Retrieve value of id

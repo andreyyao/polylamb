@@ -1,5 +1,3 @@
-use std::env::consts;
-
 use crate::sml::ast;
 
 type Id = String;
@@ -84,7 +82,7 @@ impl Typ {
 
 
 /// `cont` is the continuation
-pub fn from_ast(expr: &ast::Expr, cont:Value) -> Expr {
+pub fn from_ast(expr: &ast::Expr, cont: &Value, ctyp: &Typ, unique: &mut i32) -> Expr {
     use ast::Expr as Axpr;
     
     match expr {
@@ -95,12 +93,26 @@ pub fn from_ast(expr: &ast::Expr, cont:Value) -> Expr {
 			arg: Box::new(var) }
 	},
 	Axpr::Con { constnt, typ } => {
-	    let con = Value::Con { constnt: constnt,
+	    let con = Value::Con { constnt: *constnt,
 				   typ: Typ::from_ast(typ) };
 	    Expr::App { fun: Box::new(cont),
 			arg: Box::new(con) }
 	},
-	Axpr::
+	Axpr::Lambda { args, body, typ } => {
+	    *unique += 1;
+	    let (t_arg, t_ret) = match typ {
+		ast::Typ::Arrow(x, y) => (x, y),
+		_ => panic!()
+	    };
+	    let cont_typ = Typ::from_ast(t_ret);
+	    let cont_arg = Annot {
+		id: format!("{}@{}", "cont_temp", unique),
+		typ: cont_typ };
+	    let body_cps = 
+	    let lambda = Value::Lambda {
+		arg: (), body: (), typ: ()
+	    };
+	}
 	
     }
 }

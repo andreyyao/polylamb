@@ -2,10 +2,17 @@ use crate::sml::ast::{Typ, Expr, Binary, Constant};
 use crate::util::Context;
 
 
+/// Type annotates an expression
+pub fn typecheck_expr (expr: &mut Expr) {
+    let context = Context::new();
+    type_expr(expr, &mut context);
+}
+
+
 // TODO throw proper error instead of panicking
 /// Type annotates an expression. Returns `typ` which is the type of `expr`
 /// Panics if `expr` is not well-typed
-pub fn type_expr(expr: &mut Expr, context: &mut Context<Typ>) {
+fn type_expr(expr: &mut Expr, context: &mut Context<Typ>) {
     match expr {
 	Expr::Con { constnt, typ } => {
 	    *typ = match constnt {
