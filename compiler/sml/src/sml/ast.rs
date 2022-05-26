@@ -18,7 +18,7 @@ pub enum Typ {
 // pub struct Param { id: Id, typ: Typ }
 
 /// Literals ///
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Constant {
     Integer(i64),
     Boolean(bool)

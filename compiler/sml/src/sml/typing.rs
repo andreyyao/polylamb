@@ -4,7 +4,7 @@ use crate::util::Context;
 
 /// Type annotates an expression
 pub fn typecheck_expr (expr: &mut Expr) {
-    let context = Context::new();
+    let mut context = Context::new();
     type_expr(expr, &mut context);
 }
 
