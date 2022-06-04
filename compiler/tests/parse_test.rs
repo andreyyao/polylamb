@@ -1,5 +1,5 @@
 mod util;
-use sml::sml::{ast, parse::{parse_valexpr, parse_prog}};
+use compiler::sml::{ast, parse::{parse_valexpr, parse_prog}};
 
 
 const INPUT_ATOMS : [&str; 15] = [

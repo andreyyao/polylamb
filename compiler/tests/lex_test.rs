@@ -1,5 +1,5 @@
-extern crate sml;
-use sml::sml::lex::Token;
+extern crate compiler;
+use compiler::sml::lex::Token;
 use logos::Logos;
 
 fn check_one(input: &str, token: Token) {
