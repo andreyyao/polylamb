@@ -1,5 +1,5 @@
 use crate::sml::ast::{Typ, Expr, Binary, Constant};
-use crate::util::Context;
+use crate::util::context::Context;
 
 
 /// Type annotates an expression

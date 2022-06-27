@@ -6,63 +6,73 @@
 \usepackage{indentfirst,multicol,mathtools}
 \usepackage{upquote}
 
-\author{Andrey Yao}
+\date{\vspace{-5ex}}
+\author{\vspace{-5ex}}
+\title{System F Language Specification}
 
 \newcommand{\gm}[1]{\textit{#1}} %Grammars are italicized
 \newcommand{\kw}[1]{\textbf{#1}} %System F keywords(verbatim)
 \newcommand{\hd}[1]{ \gm{#1} & := }
-\newcommand{\mt}[1]{\texttt{<}#1\texttt{>}}
+\newcommand{\mt}[1]{$\overline{\text{#1}}$}
 \newcommand{\row}[2]{ & #1 &  & #2\\}
 \newcommand{\newrow}[2]{ & &#1 & &#2\\}
+\newcommand{\multisep}[2]{$^{(#1)\geq #2}$}
 
 \begin{document}
+\maketitle
 
-This is the language specification for a specific syntax of system F (augmented with additional constructs) used by this compiler
-\\
+\section*{Syntax:}
 \begin{figure}[h]
   \centering
 \begin{tabular}{l l l l l}
   \hline
-  \hd{l}
-  \row{\kw{null}}{unit literal}
-  \newrow{\kw{true} $|$ \kw{false}}{boolean literals}
-  \newrow{\dots $|$ \kw{$\sim$2} $|$ \kw{$\sim$1} $|$ \kw{0} $|$ \kw{1} $|$ \kw{2} $|$ \dots}{64 bit signed integers}
   \hd{e} % Expressions
-  \row{\gm{l}}{literals}
-  \newrow{\gm{id}}{identifier}
+  \row{\gm{lit}}{literals}
+  \newrow{\gm{eid}}{expression identifier}
+  \newrow{\gm{e}\kw{[$\tau$]}}{type application}
   \newrow{\kw{(} \gm{e} \kw{)}}{parenthesized}
   \newrow{\gm{e}$_1$ \gm{e}$_2$}{application}
+  \newrow{\kw{(}\mt{$e$}\multisep{,}{2}\kw{)}}{tuples}
   \newrow{\gm{e}$_1$ \gm{op} \gm{e}$_2$}{infix operation}
-  \newrow{\gm{e} \kw{[}\mt{$\tau$}$^\kw{(,)}$\kw{]}}{type application}
-  \newrow{\kw{forall} \mt{\gm{id}}$^{(,)}$\kw{.} \gm{e}}{parametric polymorphism}
+  \newrow{\kw{any} \mt{\gm{tid}}\multisep{,}{1}\kw{.} \gm{e}}{parametric polymorphism}
   \newrow{\kw{if} \gm{e}$_1$ \kw{then} \gm{e}$_2$ \kw{else} \gm{e}$_3$}{if expression}
-  \newrow{\kw{lambda} \mt{\gm{id} \kw{:} $\tau$}$^{(,)}$\kw{.} \gm{e}}{anonymous function}
-  \newrow{\kw{let} \gm{vid} \kw{:} $\tau$ \kw{\texttt{=}} \gm{e}$_1$ \kw{in} \gm{e}$_2$ \kw{end}}{}
+  \newrow{\kw{let} \gm{eid} \kw{:} $\tau$ \kw{\texttt{=}} \gm{e}$_1$ \kw{in} \gm{e}$_2$}{let binding}
+  \newrow{\kw{lambda} \mt{\gm{eid} \kw{:} $\tau$}\multisep{,}{1}\kw{.} \gm{e}}{anonymous function}
+  \newrow{\kw{match} \gm{e} \kw{with} \mt{\gm{pat} \texttt{=>} e}\multisep{\mid}{1}}{pattern destructing}
   \hline
   \hd{$\tau$}
   \row{\gm{tid}}{type identifier}
   \newrow{\kw{(} $\tau$ \kw{)}}{parenthesized}
-  \newrow{\mt{$\tau$}$^{(*)}$}{tuple types}
+  \newrow{$\tau_1$ \kw{$\ast$} $\tau_2$}{tuple types}
   \newrow{$\tau_1$ \texttt{->} $\tau_2$}{arrow types}
-  \newrow{\kw{univ} \gm{tid}\kw{.} $\tau$}{universal types}
-  \newrow{\kw{int} $|$ \kw{bool} $|$ \kw{unit}}{primitive types}
+  \newrow{\kw{forall} \mt{\gm{tid}}\multisep{,}{1}\kw{.} $\tau$}{universal types}
+  \newrow{\kw{Int} $|$ \kw{Bool} $|$ \kw{Unit}}{Built-in types}
+  \hline 
+  \hd{lit}
+  \row{\kw{null}}{unit literal}
+  \newrow{\kw{true} $|$ \kw{false}}{boolean literals}
+  \newrow{\dots $|$ \kw{$\sim$2} $|$ \kw{$\sim$1} $|$ \kw{0} $|$ \kw{1} $|$ \kw{2} $|$ \dots}{64 bit signed integers}
   \hline
+  \hd{pat}
+  \row{\gm{eid} \kw{:} $\tau$}{Binds a single expression}
+  \newrow{\kw{(}\mt{\gm{pat}}\multisep{,}{2}\kw{)}}{Destructs a tuple}
 \end{tabular}
 \end{figure}
-\\\\\\
 
-Supported built-in types: \kw{int}, \kw{bool}, \kw{unit}.
+Multiple argument \kw{lambda}'s (and \kw{forall}'s) are syntactic sugar for nested functions. For instance,
+\[\text{\kw{lambda} x: \kw{int}, y: \kw{int}. x + y}
+  \stackrel{\text{def}}{=}
+  \text{\kw{lambda} x: \kw{int}. \kw{lambda} y: \kw{int}. x + y}\]
 
-Not supporting declaration of operators as infix.
 
-No identifiers can be rebound.
 
-\kw{fn} arguments must be surrounded by parentheses, and must be a (potentially empty) comma-separated list of value identifiers. In particular, there are only single-argument functions.
+\section*{Semantics:}
+CBV big step semantics with capture-avoiding substitution.
 
-\kw{fn} arguments need to be type annotated.
+When a bound variable is bound again, the new binding takes over.
 
-Type identifiers that start with \kw{\textquotesingle}, such as \kw{\textquotesingle a}, are polymorphic. Type identifiers that start with \kw{\textquotesingle\textquotesingle} are equality types.
- 
+There is no one-type tuples
+Lexical scope.
 
 
 \end{document}

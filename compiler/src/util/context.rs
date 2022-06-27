@@ -12,7 +12,7 @@ pub struct Context<T: Clone> {
 
 impl<T: Clone> Context<T> {
 
-    /// Initialize
+    /// Empty context
     pub fn new() -> Context<T> {
 	Context { map: HashMap::new(), diffs: vec![vec![]] }
     }
