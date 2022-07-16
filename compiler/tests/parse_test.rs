@@ -36,45 +36,45 @@ const INPUT_BINOPS : [&str; 8] = [
 #[test]
 fn check_atoms() {
     for input in INPUT_ATOMS {
-	let expr_result = parse_valexpr(input);
-	assert!(expr_result.is_ok());
+        let expr_result = parse_valexpr(input);
+        assert!(expr_result.is_ok());
     }
 }
 
 #[test]
 fn check_ifs() {
     for input in INPUT_IFS {
-	assert!(matches!(parse_valexpr(input), Ok(ast::Expr::Branch{..})));
+        assert!(matches!(parse_valexpr(input), Ok(ast::Expr::Branch{..})));
     }
 }
 
 #[test]
 fn check_fns() {
     for input in INPUT_FNS {
-	let parse_result = parse_valexpr(input);
-	assert!(
-	    matches!(parse_result, Ok(ast::Expr::Lambda{..})),
-	    "\nInput: { }\nGot: {:?}\n", input, parse_result 
-	);
+        let parse_result = parse_valexpr(input);
+        assert!(
+            matches!(parse_result, Ok(ast::Expr::Lambda{..})),
+            "\nInput: { }\nGot: {:?}\n", input, parse_result
+        );
     }
 }
 
 #[test]
 fn check_binops() {
     for input in INPUT_BINOPS {
-	let parse_result = parse_valexpr(input);
-	assert!(
-	    matches!(parse_result, Ok(ast::Expr::Binop{..})),
-	    "\nInput: { }\nGot: {:?}\n", input, parse_result 
-	);
+        let parse_result = parse_valexpr(input);
+        assert!(
+            matches!(parse_result, Ok(ast::Expr::Binop{..})),
+            "\nInput: { }\nGot: {:?}\n", input, parse_result
+        );
     }
 }
 
 #[test]
 fn check_benchmarks() {
-    let map = util::read_benches();
+    let map = util::read_benches("../hehe.txt");
     for (key, value) in map {
-	let prog = parse_prog(&value).unwrap();
-	println!("{} {}", key, prog.len());
+        let prog = parse_prog(&value).unwrap();
+        println!("{} {}", key, prog.len());
     }
 }

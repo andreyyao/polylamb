@@ -5,10 +5,12 @@ pub mod utils {
     use crate::system_f::ast::*;
 
     pub fn make_binop(l: Expr, op: &str, r: Expr) -> Expr {
-	Expr::Binop { op: Binary::of_str(op),
-		      lhs: Box::new(l),
-		      rhs: Box::new(r),
-		      typ: Typ::Unknown }
+        let rexp = RawExpr::Binop {
+            op: Binary::of_str(op),
+            lhs: Box::new(l),
+            rhs: Box::new(r)
+        };
+        Expr::new(rexp)
     }
 }
 

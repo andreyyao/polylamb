@@ -1,4 +1,5 @@
 use crate::system_f::{ast, lex, parse::utils};
+use ast::{Expr, RawExpr};
 
 grammar<'a>;
 
@@ -7,40 +8,40 @@ extern {
   type Location = usize;
   type Error = lex::LexicalError;
   enum lex::Token<'a> {
-    "."	        => lex::Token::Dot,
-    ","	    	=> lex::Token::Comma,
-    ":"     	=> lex::Token::Colon,
-    "="	    	=> lex::Token::Equal,
-    "("	    	=> lex::Token::LParen,
-    ")"	    	=> lex::Token::RParen,
-    "["	    	=> lex::Token::LBrack,
-    "]"	    	=> lex::Token::RBrack,
-    "|"		=> lex::Token::Bar,
-    "->"    	=> lex::Token::Arrow,
-    "=>"    	=> lex::Token::DoubleArrow,
-    "*"	    	=> lex::Token::Mul,
-    "infix6"	=> lex::Token::Infix6(<&'a str>),
-    "infix4"	=> lex::Token::Infix4(<&'a str>),
-    "infix3"	=> lex::Token::Infix3(<&'a str>),
-    "eid" 	=> lex::Token::ExpId(<&'a str>),
-    "tid"	=> lex::Token::TypId(<&'a str>),
-    "intLit"   	=> lex::Token::IntLit(<i64>),
-    "boolLit"  	=> lex::Token::BoolLit(<bool>),
-    "unitLit"  	=> lex::Token::UnitLit,
-    "if"    	=> lex::Token::If,
-    "then"  	=> lex::Token::Then,
-    "else"  	=> lex::Token::Else,
-    "let"   	=> lex::Token::Let,
-    "in"   	=> lex::Token::In,
-    "match" 	=> lex::Token::Match,
-    "with"    	=> lex::Token::With,
-    "end"	=> lex::Token::End,
-    "any"   	=> lex::Token::Any,
+    "."         => lex::Token::Dot,
+    ","         => lex::Token::Comma,
+    ":"         => lex::Token::Colon,
+    "="         => lex::Token::Equal,
+    "("         => lex::Token::LParen,
+    ")"         => lex::Token::RParen,
+    "["         => lex::Token::LBrack,
+    "]"         => lex::Token::RBrack,
+    "|"         => lex::Token::Bar,
+    "->"        => lex::Token::Arrow,
+    "=>"        => lex::Token::DoubleArrow,
+    "*"         => lex::Token::Mul,
+    "infix6"    => lex::Token::Infix6(<&'a str>),
+    "infix4"    => lex::Token::Infix4(<&'a str>),
+    "infix3"    => lex::Token::Infix3(<&'a str>),
+    "eid"       => lex::Token::ExpId(<&'a str>),
+    "tid"       => lex::Token::TypId(<&'a str>),
+    "intLit"    => lex::Token::IntLit(<i64>),
+    "boolLit"   => lex::Token::BoolLit(<bool>),
+    "unitLit"   => lex::Token::UnitLit,
+    "if"        => lex::Token::If,
+    "then"      => lex::Token::Then,
+    "else"      => lex::Token::Else,
+    "let"       => lex::Token::Let,
+    "in"        => lex::Token::In,
+    "match"     => lex::Token::Match,
+    "with"      => lex::Token::With,
+    "end"       => lex::Token::End,
+    "any"       => lex::Token::Any,
     "lambda"    => lex::Token::Lambda,
-    "forall"   	=> lex::Token::Forall,
-    "Int"	=> lex::Token::TInt,
-    "Bool"  	=> lex::Token::TBool,
-    "Unit"	=> lex::Token::TUnit
+    "forall"    => lex::Token::Forall,
+    "Int"       => lex::Token::TInt,
+    "Bool"      => lex::Token::TBool,
+    "Unit"      => lex::Token::TUnit
   }
 }
 
@@ -51,15 +52,15 @@ pub Prog: ast::Prog = {
 pub Decl: ast::Decl = {
     "let" <v: "eid"> ":" <t: TypExpr> "=" <e: ValExpr> =>
         ast::Decl{ id: v.to_string(),
-		   sig: t,
-		   body: e }
+                   sig: t,
+                   body: e }
 }
 
 //////////////////////////////////////////////////
 ///////////////////// EXPR ///////////////////////
 //////////////////////////////////////////////////
 
-pub ValExpr: ast::Expr = {
+pub ValExpr: Expr = {
     <e: ValExpr2> => e,
     <e: ValExprIf> => e,
     <e: ValExprLet> => e,
@@ -68,25 +69,28 @@ pub ValExpr: ast::Expr = {
 
 ValExprIf: ast::Expr = {
     "if" <e1: ValExpr> "then" <e2: ValExpr> "else" <e3: ValExpr> =>
-        ast::Expr::If{ cond: Box::new(e1),
-	 	       t: Box::new(e2),
-		       f: Box::new(e3),
-		       typ: ast::Typ::Unknown }
+        Expr::new(ast::RawExpr::If{
+            cond: Box::new(e1),
+            t: Box::new(e2),
+            f: Box::new(e3)
+        })
 }
 
 ValExprLet: ast::Expr = {
     "let" <a: Annot> "=" <e1: ValExpr> "in" <e2: ValExpr> =>
-        ast::Expr::Let{ annot: a,
-	  		exp: Box::new(e1),
-			body: Box::new(e2),
-			typ: ast::Typ::Unknown }
+        Expr::new(ast::RawExpr::Let{
+            annot: a,
+            exp: Box::new(e1),
+            body: Box::new(e2)
+        })
 }
 
 ValExprMatch: ast::Expr = {
     "match" <e: ValExpr> "with" <cs: Sep<(<Pattern> "=>" <ValExpr>), "|">> "end" =>
-        ast::Expr::Match{ exp: Box::new(e),
-			  clauses: cs,
-			  typ: ast::Typ::Unknown }
+        Expr::new(RawExpr::Match{
+            exp: Box::new(e),
+            clauses: cs
+        })
 }
 
 
@@ -95,13 +99,15 @@ ValExprMatch: ast::Expr = {
 // Lambda and forall. Expression body extends as far as possible
 ValExpr2: ast::Expr = {
     "lambda" <a: Sep<Annot, ",">> "." <e: ValExpr> =>
-    	 ast::Expr::Lambda{ args: a,
-	 		    body: Box::new(e),
-			    typ:  ast::Typ::Unknown },
+         Expr::new(RawExpr::Lambda{
+             args: a,
+             body: Box::new(e)
+         }),
     "any" <a: Sep<TypVar, ",">> "." <e: ValExpr> =>
-    	 ast::Expr::Any{ args: a,
-	 		 body: Box::new(e),
-			 typ:  ast::Typ::Unknown },
+         Expr::new(RawExpr::Any{
+             args: a,
+             body: Box::new(e),
+         }),
     <e: ValExpr3> => e
 }
 
@@ -133,14 +139,16 @@ ValExpr7: ast::Expr = {
 ValExpr8: ast::Expr = {
     // Expression application
     <e1: ValExpr8> <e2: ValExprAtom> =>
-        ast::Expr::EApp{ exp: Box::new(e1),
-			 arg: Box::new(e2),
-			 typ: ast::Typ::Unknown },
+        Expr::new(RawExpr::EApp{
+            exp: Box::new(e1),
+            arg: Box::new(e2)
+        }),
     // Type application
     <e: ValExpr8> "[" <t: TypExpr> "]" =>
-        ast::Expr::TApp{ exp: Box::new(e),
-			 arg: t,
-			 typ: ast::Typ::Unknown },
+        Expr::new(RawExpr::TApp{
+            exp: Box::new(e),
+            arg: t,
+        }),
     <e: ValExprAtom> => e
 }
 
@@ -148,20 +156,25 @@ ValExpr8: ast::Expr = {
 // Atomic expressions have no ambiguities. Highest precedence
 ValExprAtom: ast::Expr = {
     "intLit" =>
-        ast::Expr::Con{ val: ast::Constant::Integer(<>),
-    	     		typ: ast::Typ::Unknown },
+        Expr::new(RawExpr::Con{
+            val: ast::Constant::Integer(<>),
+        }),
     "boolLit" =>
-    	ast::Expr::Con{ val: ast::Constant::Boolean(<>),
-    	     		typ: ast::Typ::Unknown },
+        Expr::new(RawExpr::Con{
+            val: ast::Constant::Boolean(<>),
+        }),
     "unitLit" =>
-    	ast::Expr::Con{ val: ast::Constant::Unit,
-    	     		typ: ast::Typ::Unknown },
+        Expr::new(RawExpr::Con{
+            val: ast::Constant::Unit,
+        }),
     "eid" =>
-        ast::Expr::Var{ id: <>.to_string(),
-	                typ: ast::Typ::Unknown },
+        Expr::new(RawExpr::Var{
+            id: <>.to_string()
+        }),
     "(" <es: SepMulti<ValExpr, ",">> ")" =>
-    	ast::Expr::Tuple{ entries: es,
-			  typ: ast::Typ::Unknown },
+        Expr::new(RawExpr::Tuple{
+            entries: es
+        }),
     "(" <e: ValExpr> ")" => e,
 }
 
@@ -216,7 +229,7 @@ Pattern: ast::Pattern = {
     "(" <multi: SepMulti<Pattern, ",">> ")" =>
         ast::Pattern::Tuple(multi),
     "(" <a: "eid"> ")" =>
-    	ast::Pattern::Var(a.to_string())
+        ast::Pattern::Var(a.to_string())
 }
 
 
@@ -224,7 +237,7 @@ Pattern: ast::Pattern = {
 Annot: ast::Annot = {
     <v1: "eid"> ":" <t: TypExpr> =>
         ast::Annot{ eid: v1.to_string(),
-	 	    typ: t }
+                    typ: t }
 }
 
 //////////// END HELPERS /////////////
