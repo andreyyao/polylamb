@@ -36,7 +36,7 @@ const IDENTS: [&str; 21]= [
 #[test]
 fn int_lits() {
     for (input, expect) in INT_PAIRS {
-	check_one(input, Token::IntLit(expect));
+        check_one(input, Token::IntLit(expect));
     }
 }
 
@@ -49,7 +49,7 @@ fn bool_lits() {
 #[test]
 fn idents() {
     for input in IDENTS {
-	check_one(input, Token::Ident(input));
+        check_one(input, Token::Ident(input));
     }
 }
 
@@ -69,12 +69,12 @@ fn infixes() {
 fn keywords() {
     use Token::*;
     let pairs = [
-	("if", If), ("then", Then), ("else", Else),
-	("val", Val), ("rec", Rec), ("fn", Fn),
-	("int", TInt), ("bool", TBool)
+        ("if", If), ("then", Then), ("else", Else),
+        ("val", Val), ("rec", Rec), ("fn", Fn),
+        ("int", TInt), ("bool", TBool)
     ];
     for (input, expect) in pairs {
-	check_one(input, expect);
+        check_one(input, expect);
     }
 }
 
@@ -82,10 +82,10 @@ fn keywords() {
 fn symbols() {
     use Token::*;
     let pairs = [
-	("(", LParen), (")", RParen), ("=", Equal), (",", Comma),
-	(":", Colon), ("->", Arrow), ("=>", TwoArrow)
+        ("(", LParen), (")", RParen), ("=", Equal), (",", Comma),
+        (":", Colon), ("->", Arrow), ("=>", TwoArrow)
     ];
     for (input, expect) in pairs {
-	check_one(input, expect);
+        check_one(input, expect);
     }
 }

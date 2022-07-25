@@ -4,9 +4,9 @@ version = "0.1.0"
 edition = "2021"
 
 [build-dependencies]
-lalrpop = { version = "0.19.7", default-features = false }
+lalrpop = { version = "0.19.8", default-features = false }
 
 [dependencies]
-logos = "0.12.0"
-logos-derive = "0.12.0"
-lalrpop-util = "0.19.7"
+logos = "0.12.1"
+logos-derive = "0.12.1"
+lalrpop-util = "0.19.8"

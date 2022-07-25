@@ -4,7 +4,7 @@ use logos::{Logos, Lexer};
 
 /// Callback for bool literal tokens
 fn token_bool_lit<'a>(lex: &mut Lexer<'a, Token<'a>>) -> Option<bool> {
-    let slice : &'a str = lex.slice();
+    let slice: &'a str = lex.slice();
     let n = slice.parse::<bool>();
     match n {
         Result::Ok(b) => Some(b),
@@ -14,8 +14,8 @@ fn token_bool_lit<'a>(lex: &mut Lexer<'a, Token<'a>>) -> Option<bool> {
 
 /// Callback for int literal tokens
 fn token_int_lit<'a>(lex: &mut Lexer<'a, Token<'a>>) -> Option<i64> {
-    let slice : &'a str = lex.slice();
-    let sign : usize = if slice.starts_with('~') { 1 } else { 0 };
+    let slice: &'a str = lex.slice();
+    let sign: usize = if slice.starts_with('~') { 1 } else { 0 };
     let slice_abs = &slice[sign..];
     let n_abs = slice_abs.parse::<i64>();
     match n_abs {
@@ -103,7 +103,7 @@ pub enum Token<'a> {
     // We can also use this variant to define whitespace,
     // or any other matches we wish to skip.
     #[error]
-    #[regex(r#"[ \t\n\f]+"#, logos::skip)]
+    #[regex("([ \t\n\r]+)|(/\\*[^*]*\\*+(?:[^/*][^*]*\\*+)*/)", logos::skip)]
     Error,
 }
 

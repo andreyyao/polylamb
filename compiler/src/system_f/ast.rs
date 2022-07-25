@@ -1,5 +1,4 @@
-use std::ops::Deref;
-
+use std::{fmt, ops::{Deref, DerefMut}, fmt::{Display, Debug}};
 
 /// Just a type alias
 type Id = String;
@@ -34,7 +33,6 @@ pub enum Binary {
     Eq, Lt, Gt, Ne,
     And, Or
 }
-
 
 /// Patterns
 #[derive(Debug, PartialEq)]
@@ -82,21 +80,6 @@ pub struct Expr {
     pub typ: Typ
 }
 
-
-impl Deref for Expr {
-    type Target = RawExpr;
-    fn deref(&self) -> &Self::Target {
-        &self.expr
-    }
-}
-
-impl Expr {
-    pub fn new(expr: RawExpr) -> Expr {
-        Expr { expr, typ: Typ::Unknown }
-    }
-}
-
-
 /// Top level function declarations
 #[derive(Debug, PartialEq)]
 pub struct Decl {
@@ -107,6 +90,30 @@ pub struct Decl {
 pub type Prog = Vec<Decl>;
 
 
+impl Deref for Expr {
+    type Target = RawExpr;
+    fn deref(&self) -> &Self::Target {
+        &self.expr
+    }
+}
+
+impl DerefMut for Expr {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.expr
+    }
+}
+
+impl Expr {
+    pub fn new(expr: RawExpr) -> Expr {
+        Expr { expr, typ: Typ::Unknown }
+    }
+}
+
+impl RawExpr {
+    pub fn is_atomic(&self) -> bool {
+        true
+    }
+}
 
 impl Binary {
     /// Maps string rep of binops to their enum counterparts
@@ -128,17 +135,119 @@ impl Binary {
 }
 
 
-// impl Typ {
-//     /// Returns true if one can compare types of this kind.
-//     /// panics if input type is `Unknown`
-//     pub fn is_equality_type(&self) -> bool {
-//      match self {
-//          Typ::Unknown => panic!(), // Shouldn't happen
-//          Typ::Int => true,
-//          Typ::Bool => true,
-//          Typ::Unit => true,
-//          Typ::Prod(ts) => ts.iter().all(|t| t.is_equality_type()),
-//          Typ::Arrow(_, _) => false
-//      }
-//     }
-// }
+impl Typ {
+    /// Whether the typ is atomic(doesn't contain smaller types)
+    pub fn is_atomic(&self) -> bool {
+        use Typ::*;
+        matches!(self, Int | Bool | Unit)
+    }
+}
+
+
+impl Display for Expr {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let r = &self.expr;
+        let t = &self.typ;
+        write!(f, "{r} /*{t}*/")
+    }
+}
+
+impl Display for Annot {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let r = &self.eid;
+        let t = &self.typ;
+        write!(f, "{r} : {t}")
+    }
+}
+
+impl Display for RawExpr {
+
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+
+        /// Parenths over composite expressions to disambiguate
+        fn fmt_composite(exp: &Expr, ff: &mut fmt::Formatter) -> fmt::Result {
+            if exp.is_atomic() {
+                write!(ff, "{exp}")
+            } else {
+                write!(ff, "({exp})")
+            }
+        }
+
+        match self {
+            RawExpr::Con{ val } => write!(f, "{val}"),
+            RawExpr::Var{ id } => write!(f, "{id}"),
+            RawExpr::Let{ annot, exp, body } => write!(f, "{annot} = {exp} in {body}"),
+            RawExpr::EApp { exp, arg } => write!(f, "{exp} {arg}"),
+            RawExpr::TApp { exp, arg } => write!(f, "{exp}[{arg}]"),
+            RawExpr::Tuple { entries } => {
+                write!(f, "(")?;
+                for (i, t) in entries.iter().enumerate() {
+                    if i != 0 { write!(f, ", ")?; }
+                    fmt_composite(t, f)?;
+                }
+                write!(f, ")")
+            },
+            _ => write!(f, "TODO")
+        }
+    }
+}
+
+impl Display for Constant {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Constant::Integer(i) => {
+                if i < &0 {
+                    let i1 = -i;
+                    write!(f, "~{i1}")
+                } else {
+                    write!(f, "{i}")
+                }
+            },
+            Constant::Boolean(b) => write!(f, "{b}"),
+            Constant::Unit => write!(f, "null")
+        }
+    }
+}
+
+impl Display for Typ {
+
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+
+        /// Parenths over composite types to disambiguate parsing precedence
+        fn fmt_composite(typ: &Typ, ff: &mut fmt::Formatter) -> fmt::Result {
+            if typ.is_atomic() {
+                write!(ff, "{typ}")
+            } else {
+                write!(ff, "({typ})")
+            }
+        }
+
+        match self {
+            Typ::Int => write!(f, "Int"),
+            Typ::Bool => write!(f, "Bool"),
+            Typ::Unit => write!(f, "Unit"),
+            Typ::Unknown => write!(f, "Unknown"),
+            Typ::Prod(typs) => {
+                for (i, t) in typs.iter().enumerate() {
+                    if i != 0 { write!(f, " * ")?; }
+                    fmt_composite(t, f)?;
+                }
+                write!(f, "")
+            },
+            Typ::Arrow(x, y) => {
+                fmt_composite(x, f)?;
+                write!(f, " -> ")?;
+                fmt_composite(y, f)
+            },
+            Typ::Forall(vs, t) => {
+                write!(f, "∀ ")?;
+                for (i, t) in vs.iter().enumerate() {
+                    if i != 0 { write!(f, ", ")?; }
+                    write!(f, "{t}")?;
+                }
+                write!(f, ". {t}")
+            },
+            Typ::TVar(v) => write!(f, "{v}")
+        }
+    }
+}
