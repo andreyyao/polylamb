@@ -1,2 +1,2 @@
-pub mod lex_test;
-pub mod parse_test;
+mod lex_test;
+mod parse_test;

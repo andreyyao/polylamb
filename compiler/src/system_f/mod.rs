@@ -2,3 +2,4 @@ pub mod lex;
 pub mod ast;
 pub mod parse;
 pub mod semant;
+// pub mod lowering;

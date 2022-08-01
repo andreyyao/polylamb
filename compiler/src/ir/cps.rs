@@ -1,4 +1,4 @@
-use crate::sml::ast;
+use crate::system_f::ast;
 
 type Id = String;
 
@@ -8,9 +8,14 @@ pub enum Typ {
     Int,
     Bool,
     Unit,
-    // Poly(String),
+    /* Type variable introduced by Forall types */
+    TVar(Id),
+    /* Product type */
     Prod(Vec<Typ>),
-    Cont(Box<Typ>) // Continuations
+    /* Continuations, no return type */
+    Cont(Box<Typ>),
+    /* Universal types */
+    Forall(Vec<Id>, Box<Typ>)
 }
 
 
@@ -31,7 +36,7 @@ pub enum Value {
     /// Identifiers aka variables
     Var { id: Id, typ: Typ },
     /// Constants
-    Con { constnt: ast::Constant, typ: Typ },
+    Con { constant: ast::Constant, typ: Typ },
     /// Tuples, n >= 2
     Tuple { entries: Vec<Value>, typ: Typ },
     /// Anonymous functions
@@ -63,7 +68,7 @@ impl Typ {
     /// Translates from ast types
     pub fn from_ast(typ: &ast::Typ) -> Typ {
         match typ {
-            ast::Typ::Unknown => panic!(),
+            ast::Typ::Unknown => panic!("Encountered expr with unchecked type"),
             ast::Typ::Int => Typ::Int,
             ast::Typ::Bool => Typ::Bool,
             ast::Typ::Unit => Typ::Unit,
@@ -75,47 +80,8 @@ impl Typ {
                 let irt1 = Typ::from_ast(t1);
                 let irt2 = Typ::to_cont(t2);
                 Typ::Cont(Box::new(Typ::Prod(vec![irt1, irt2])))
-            }
+            },
+            _ => Typ::Int
         }
-    }
-}
-
-
-/// `cont` is the continuation
-pub fn from_ast(expr: &ast::Expr, cont: &Value, ctyp: &Typ, unique: &mut i32) -> Expr {
-    use ast::Expr as Axpr;
-
-    match expr {
-        Axpr::Var { id, typ } => {
-            let var = Value::Var{ id: id.to_string(),
-                                  typ: Typ::from_ast(typ) };
-            Expr::App { fun: Box::new(cont.clone()),
-                        arg: Box::new(var) }
-        },
-        Axpr::Con { constnt, typ } => {
-            let con = Value::Con { constnt: constnt.clone(),
-                                   typ: Typ::from_ast(typ) };
-            Expr::App { fun: Box::new(cont.clone()),
-                        arg: Box::new(con) }
-        },
-        // TODO change this
-        _ => Expr::App { fun: Box::new(Value::Var {id: "TODO".to_string(), typ: Typ::Bool }),
-                         arg: Box::new(Value::Var {id: "TODO".to_string(), typ: Typ::Bool }) }
-        // Axpr::Lambda { args, body, typ } => {
-            // *unique += 1;
-            // let (t_arg, t_ret) = match typ {
-            //  ast::Typ::Arrow(x, y) => (x, y),
-            //  _ => panic!()
-            // };
-            // let cont_typ = Typ::from_ast(t_ret);
-            // let cont_arg = Annot {
-            //  id: format!("{}@{}", "cont_temp", unique),
-            //  typ: cont_typ };
-            // let body_cps =
-            // let lambda = Value::Lambda {
-            //  arg: (), body: (), typ: ()
-            // };
-        // }
-
     }
 }

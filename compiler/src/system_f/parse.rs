@@ -1,5 +1,5 @@
 lalrpop_mod!(pub parser, "/system_f/parser.rs"); // synthesized by LALRPOP
-use crate::system_f::{ast, lex::{LexerWrap, Token}};
+use super::{ast, lex::{LexerWrap, Token}};
 
 pub mod utils {
     use crate::system_f::ast::*;

@@ -1,3 +1,6 @@
+/*! The definition for the System F AST structure,
+as well as some utility functions related to it. */
+
 use std::{fmt, ops::{Deref, DerefMut}, fmt::{Display, Debug}};
 
 /// Just a type alias
@@ -9,10 +12,15 @@ pub enum Typ {
     Unknown,
     Int,
     Bool,
+    /// Unit has one value,
     Unit,
+    /// Type variable, introduced by Forall types
     TVar(Id),
+    /// Product of more than 2 types
     Prod(Vec<Typ>),
+    /// Function types
     Arrow(Box<Typ>, Box<Typ>),
+    /// Universal types
     Forall(Vec<Id>, Box<Typ>)
 }
 
@@ -20,7 +28,7 @@ pub enum Typ {
 /// Literals
 #[derive(Debug, PartialEq, Clone)]
 pub enum Constant {
-    Unit,
+    Null,
     Integer(i64),
     Boolean(bool),
 }
@@ -43,7 +51,7 @@ pub enum Pattern {
 
 /// Annotated variables
 #[derive(Debug, PartialEq)]
-pub struct Annot { pub eid: Id, pub typ: Typ }
+pub struct Annot { pub var: Id, pub typ: Typ }
 
 /// Expressions without typ annotation
 #[derive(Debug, PartialEq)]
@@ -52,7 +60,7 @@ pub enum RawExpr {
     Con { val: Constant },
     /// Identifiers aka variables
     Var { id: Id },
-    /// Let  in body end
+    /// `let [annot] = [exp] in [body] end`
     Let { annot: Annot, exp: Box<Expr>, body: Box<Expr> },
     /// Expression function application
     EApp { exp: Box<Expr>, arg: Box<Expr> },
@@ -154,7 +162,7 @@ impl Display for Expr {
 
 impl Display for Annot {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let r = &self.eid;
+        let r = &self.var;
         let t = &self.typ;
         write!(f, "{r} : {t}")
     }
@@ -204,7 +212,7 @@ impl Display for Constant {
                 }
             },
             Constant::Boolean(b) => write!(f, "{b}"),
-            Constant::Unit => write!(f, "null")
+            Constant::Null => write!(f, "null")
         }
     }
 }

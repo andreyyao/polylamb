@@ -165,7 +165,7 @@ ValExprAtom: ast::Expr = {
         }),
     "unitLit" =>
         Expr::new(RawExpr::Con{
-            val: ast::Constant::Unit,
+            val: ast::Constant::Null,
         }),
     "eid" =>
         Expr::new(RawExpr::Var{
@@ -236,7 +236,7 @@ Pattern: ast::Pattern = {
 // Type annotated identifier.
 Annot: ast::Annot = {
     <v1: "eid"> ":" <t: TypExpr> =>
-        ast::Annot{ eid: v1.to_string(),
+        ast::Annot{ var: v1.to_string(),
                     typ: t }
 }
 
