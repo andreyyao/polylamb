@@ -1,7 +1,7 @@
 /*! The definition for the System F AST structure,
 as well as some utility functions related to it. */
 
-use std::{fmt, ops::{Deref, DerefMut}, fmt::{Display, Debug}};
+use std::{fmt, ops::{Deref, DerefMut}, fmt::{Display, Debug}, collections::HashMap};
 
 /// Just a type alias
 type Id = String;
@@ -21,7 +21,7 @@ pub enum Typ {
     /// Function types
     Arrow(Box<Typ>, Box<Typ>),
     /// Universal types
-    Forall(Vec<Id>, Box<Typ>)
+    Forall(Id, Box<Typ>)
 }
 
 
@@ -69,13 +69,13 @@ pub enum RawExpr {
     /// Tuples, n >= 2
     Tuple { entries: Vec<Expr> },
     /// Pattern matching
-    Match { exp: Box<Expr>, clauses: Vec<(Pattern, Expr)> },
+    Match { exp: Box<Expr>, clause: (Pattern, Box<Expr>) },
     /// Binary operations
     Binop { lhs: Box<Expr>, op: Binary, rhs: Box<Expr> },
     /// Functions that take eid's as arguments, ex. `lambda x: int. x + 1
     Lambda { args: Vec<Annot>, body: Box<Expr> },
     /// Type abstractions, ex. `any X. (lambda x: X. x)`
-    Any { args: Vec<Id>, body: Box<Expr> },
+    Any { poly: Id, body: Box<Expr> },
     /// if [cond] then [t] else [f]
     If { cond: Box<Expr>, t: Box<Expr>, f: Box<Expr> },
 }
@@ -95,7 +95,7 @@ pub struct Decl {
 }
 
 
-pub type Prog = Vec<Decl>;
+pub type Prog = HashMap<Id, Decl>;
 
 
 impl Deref for Expr {
@@ -247,13 +247,8 @@ impl Display for Typ {
                 write!(f, " -> ")?;
                 fmt_composite(y, f)
             },
-            Typ::Forall(vs, t) => {
-                write!(f, "∀ ")?;
-                for (i, t) in vs.iter().enumerate() {
-                    if i != 0 { write!(f, ", ")?; }
-                    write!(f, "{t}")?;
-                }
-                write!(f, ". {t}")
+            Typ::Forall(v, t) => {
+                write!(f, "∀ {v}. {t}")
             },
             Typ::TVar(v) => write!(f, "{v}")
         }

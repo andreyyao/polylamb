@@ -1,5 +1,5 @@
 use crate::system_f::{ast, lex, parse::utils};
-use ast::{Expr, RawExpr};
+use ast::{Prog, Expr, RawExpr};
 
 grammar<'a>;
 
@@ -46,7 +46,13 @@ extern {
 }
 
 pub Prog: ast::Prog = {
-    <ds: Decl+> => ds
+    <ds: Decl+> => {
+        let mut m = Prog::new();
+        for d in ds {
+            m.insert(d.id.to_string(), d);
+        }
+        m
+    }
 }
 
 pub Decl: ast::Decl = {
@@ -86,10 +92,10 @@ ValExprLet: ast::Expr = {
 }
 
 ValExprMatch: ast::Expr = {
-    "match" <e: ValExpr> "with" <cs: Sep<(<Pattern> "=>" <ValExpr>), "|">> "end" =>
+    "match" <e: ValExpr> "with" <c: Pattern> "=>" <b: ValExpr> "end" =>
         Expr::new(RawExpr::Match{
             exp: Box::new(e),
-            clauses: cs
+            clause: (c, Box::new(b))
         })
 }
 
@@ -103,9 +109,9 @@ ValExpr2: ast::Expr = {
              args: a,
              body: Box::new(e)
          }),
-    "any" <a: Sep<TypVar, ",">> "." <e: ValExpr> =>
+    "any" <a: TypVar> "." <e: ValExpr> =>
          Expr::new(RawExpr::Any{
-             args: a,
+             poly: a,
              body: Box::new(e),
          }),
     <e: ValExpr3> => e
@@ -183,7 +189,13 @@ ValExprAtom: ast::Expr = {
 //////////////////////////////////////////////////
 
 pub TypExpr: ast::Typ = {
-    <t: TypExprArrow> => t
+    <t: TypExprForall> => t
+}
+
+TypExprForall: ast::Typ = {
+    "forall" <t: "tid"> "." <te: TypExpr> =>
+        ast::Typ::Forall(t.to_string(), Box::new(te)),
+     <t: TypExprArrow> => t
 }
 
 TypExprArrow: ast::Typ = {
