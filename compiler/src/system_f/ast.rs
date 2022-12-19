@@ -4,7 +4,7 @@ as well as some utility functions related to it. */
 use std::{fmt, ops::{Deref, DerefMut}, fmt::{Display, Debug}, collections::HashMap};
 
 /// Just a type alias
-type Id = String;
+pub type Id = String;
 
 /// The type of types : )
 #[derive(Debug, PartialEq, Clone)]
@@ -88,7 +88,8 @@ pub struct Expr {
     pub typ: Typ
 }
 
-/// Top level function declarations
+
+/// Top level definitions
 #[derive(Debug, PartialEq)]
 pub struct Decl {
     pub id: Id, pub sig: Typ, pub body: Expr

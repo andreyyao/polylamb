@@ -92,9 +92,9 @@ pub enum Token<'a> {
     #[token("match")] Match,
     #[token("with")] With,
     #[token("end")] End,
-    #[regex("∀|any")] Any,
+    #[regex("Λ|any")] Any,
     #[regex("λ|lambda")] Lambda,
-    #[regex("Λ|forall")] Forall,
+    #[regex("∀|forall")] Forall,
 
     // Built-in types
     #[token("Int")] TInt,

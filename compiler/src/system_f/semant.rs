@@ -55,7 +55,7 @@ fn check(expr: &RawExpr, ctxt: &mut Context<Typ>) -> Typ {
                 match (pat, typ) {
                     (Pattern::Var(id), _) => ctxt.bind(id, typ),
                     (Pattern::Tuple(pats), Typ::Prod(typs)) => {
-                        assert_eq!(len(pats), len(typs));
+                        assert_eq!(pats.len(), typs.len());
                         for (p, t) in pats.iter().zip(typs.iter()) {
                             fit_pats(p, t, ctxt)
                         }
@@ -98,7 +98,6 @@ fn check(expr: &RawExpr, ctxt: &mut Context<Typ>) -> Typ {
             assert_eq!(typ_t, typ_f);
             typ_t
         }
-        _ => panic!("Unimplemented")
     };
     ctxt.exeunt();
     typ
