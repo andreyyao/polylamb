@@ -23,7 +23,7 @@ fn check(expr: &RawExpr, ctxt: &mut Context<Typ>) -> Typ {
             let typ = check(&exp.expr, ctxt);
             // TODO change assert to error
             assert_eq!(typ, annot.typ);
-            body.typ.clone()
+	    typ
         },
         EApp { exp, arg } => {
             let exp_t = check(&exp.expr, ctxt);
@@ -106,7 +106,6 @@ fn check(expr: &RawExpr, ctxt: &mut Context<Typ>) -> Typ {
 pub fn check_expr(expr: &mut Expr) {
     let mut ctxt = Context::<Typ>::new();
     let typ = check(&expr.expr, &mut ctxt);
-    expr.typ = typ
 }
 
 // pub fn check_decl(decl: Decl) {

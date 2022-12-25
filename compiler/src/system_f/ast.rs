@@ -3,25 +3,84 @@ as well as some utility functions related to it. */
 
 use std::{fmt, ops::{Deref, DerefMut}, fmt::{Display, Debug}, collections::HashMap};
 
-/// Just a type alias
-pub type Id = String;
 
-/// The type of types : )
+/// The entire program
 #[derive(Debug, PartialEq, Clone)]
-pub enum Typ {
-    Unknown,
+pub struct Prog {
+    declarations: HashMap<String, Decl>,
+    /// Order of declarations
+    order: Vec<String>
+}
+
+
+/// Top level declarations
+#[derive(Debug, PartialEq, Clone)]
+pub struct Decl {
+    pub id: String,
+    pub sig: Typ,
+    pub body: Expr
+}
+
+
+/// System F types without metadata
+#[derive(Debug, PartialEq, Clone)]
+pub enum RawTyp {
     Int,
     Bool,
     /// Unit has one value,
     Unit,
     /// Type variable, introduced by Forall types
-    TVar(Id),
+    TVar(String),
     /// Product of more than 2 types
     Prod(Vec<Typ>),
     /// Function types
     Arrow(Box<Typ>, Box<Typ>),
     /// Universal types
-    Forall(Id, Box<Typ>)
+    Forall(String, Box<Typ>)
+}
+
+
+/// Expressions without metadata
+#[derive(Debug, PartialEq, Clone)]
+pub enum RawExpr {
+    /// Constants
+    Con { val: Constant },
+    /// Stringentifiers aka variables
+    Var { id: String },
+    /// `let [annot] = [exp] in [body] end`
+    Let { annot: Annot, exp: Box<Expr>, body: Box<Expr> },
+    /// Expression function application
+    EApp { exp: Box<Expr>, arg: Box<Expr> },
+    /// Type concretization, ex. `f[int]`
+    TApp { exp: Box<Expr>, arg: Typ },
+    /// Tuples, n >= 2
+    Tuple { entries: Vec<Expr> },
+    /// Pattern matching
+    Match { exp: Box<Expr>, clause: (Pattern, Box<Expr>) },
+    /// Binary operations
+    Binop { lhs: Box<Expr>, op: Binary, rhs: Box<Expr> },
+    /// Functions that take eid's as arguments, ex. `lambda x: int. x + 1
+    Lambda { args: Vec<Annot>, body: Box<Expr> },
+    /// Type abstractions, ex. `any X. (lambda x: X. x)`
+    Any { poly: String, body: Box<Expr> },
+    /// if [cond] then [t] else [f]
+    If { cond: Box<Expr>, t: Box<Expr>, f: Box<Expr> },
+}
+
+
+/// The type of types : )
+#[derive(Debug, PartialEq, Clone)]
+pub struct Typ {
+    pub typ: RawTyp,
+    pub span: Span
+}
+
+
+/// Expression with extra metadata
+#[derive(Debug, PartialEq, Clone)]
+pub struct Expr {
+    pub expr: RawExpr,
+    pub span: Span
 }
 
 
@@ -42,62 +101,34 @@ pub enum Binary {
     And, Or
 }
 
+
 /// Patterns
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Pattern {
-    Var(Id),
+    Var(String),
+    Wildcard,
     Tuple(Vec<Pattern>)
 }
 
-/// Annotated variables
-#[derive(Debug, PartialEq)]
-pub struct Annot { pub var: Id, pub typ: Typ }
 
-/// Expressions without typ annotation
-#[derive(Debug, PartialEq)]
-pub enum RawExpr {
-    /// Constants
-    Con { val: Constant },
-    /// Identifiers aka variables
-    Var { id: Id },
-    /// `let [annot] = [exp] in [body] end`
-    Let { annot: Annot, exp: Box<Expr>, body: Box<Expr> },
-    /// Expression function application
-    EApp { exp: Box<Expr>, arg: Box<Expr> },
-    /// Type concretization, ex. `f[int]`
-    TApp { exp: Box<Expr>, arg: Typ },
-    /// Tuples, n >= 2
-    Tuple { entries: Vec<Expr> },
-    /// Pattern matching
-    Match { exp: Box<Expr>, clause: (Pattern, Box<Expr>) },
-    /// Binary operations
-    Binop { lhs: Box<Expr>, op: Binary, rhs: Box<Expr> },
-    /// Functions that take eid's as arguments, ex. `lambda x: int. x + 1
-    Lambda { args: Vec<Annot>, body: Box<Expr> },
-    /// Type abstractions, ex. `any X. (lambda x: X. x)`
-    Any { poly: Id, body: Box<Expr> },
-    /// if [cond] then [t] else [f]
-    If { cond: Box<Expr>, t: Box<Expr>, f: Box<Expr> },
+/// Type-annotated variables
+#[derive(Debug, PartialEq, Clone)]
+pub struct Annot { pub var: String, pub typ: Typ }
+
+
+/// Start and end positions
+#[derive(Debug, PartialEq, Clone)]
+pub struct Span { start: usize, end: usize }
+
+
+////////////////////////////////////////////////////////////////////////
+
+
+impl Span {
+    fn new(start: usize, end: usize) -> Span {
+	Span { start, end }
+    }
 }
-
-
-/// Expression with type annotation attached
-#[derive(Debug, PartialEq)]
-pub struct Expr {
-    pub expr: RawExpr,
-    pub typ: Typ
-}
-
-
-/// Top level definitions
-#[derive(Debug, PartialEq)]
-pub struct Decl {
-    pub id: Id, pub sig: Typ, pub body: Expr
-}
-
-
-pub type Prog = HashMap<Id, Decl>;
-
 
 impl Deref for Expr {
     type Target = RawExpr;
@@ -112,15 +143,22 @@ impl DerefMut for Expr {
     }
 }
 
-impl Expr {
-    pub fn new(expr: RawExpr) -> Expr {
-        Expr { expr, typ: Typ::Unknown }
+impl Deref for Typ {
+    type Target = RawTyp;
+    fn deref(&self) -> &Self::Target {
+        &self.typ
+    }
+}
+
+impl DerefMut for Typ {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.typ
     }
 }
 
 impl RawExpr {
     pub fn is_atomic(&self) -> bool {
-        true
+	false
     }
 }
 
@@ -143,21 +181,18 @@ impl Binary {
     }
 }
 
-
-impl Typ {
-    /// Whether the typ is atomic(doesn't contain smaller types)
+impl RawTyp {
+    /// Whether the typ expression is atomic(doesn't contain smaller types)
     pub fn is_atomic(&self) -> bool {
-        use Typ::*;
+        use RawTyp::*;
         matches!(self, Int | Bool | Unit)
     }
 }
 
-
 impl Display for Expr {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let r = &self.expr;
-        let t = &self.typ;
-        write!(f, "{r} /*{t}*/")
+        write!(f, "{r}")
     }
 }
 
@@ -218,12 +253,12 @@ impl Display for Constant {
     }
 }
 
-impl Display for Typ {
+impl Display for RawTyp {
 
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 
         /// Parenths over composite types to disambiguate parsing precedence
-        fn fmt_composite(typ: &Typ, ff: &mut fmt::Formatter) -> fmt::Result {
+        fn fmt_composite(typ: &RawTyp, ff: &mut fmt::Formatter) -> fmt::Result {
             if typ.is_atomic() {
                 write!(ff, "{typ}")
             } else {
@@ -232,26 +267,31 @@ impl Display for Typ {
         }
 
         match self {
-            Typ::Int => write!(f, "Int"),
-            Typ::Bool => write!(f, "Bool"),
-            Typ::Unit => write!(f, "Unit"),
-            Typ::Unknown => write!(f, "Unknown"),
-            Typ::Prod(typs) => {
+            RawTyp::Int => write!(f, "Int"),
+            RawTyp::Bool => write!(f, "Bool"),
+            RawTyp::Unit => write!(f, "Unit"),
+            RawTyp::Prod(typs) => {
                 for (i, t) in typs.iter().enumerate() {
                     if i != 0 { write!(f, " * ")?; }
                     fmt_composite(t, f)?;
                 }
                 write!(f, "")
             },
-            Typ::Arrow(x, y) => {
+            RawTyp::Arrow(x, y) => {
                 fmt_composite(x, f)?;
                 write!(f, " -> ")?;
                 fmt_composite(y, f)
             },
-            Typ::Forall(v, t) => {
+            RawTyp::Forall(v, t) => {
                 write!(f, "∀ {v}. {t}")
             },
-            Typ::TVar(v) => write!(f, "{v}")
+            RawTyp::TVar(v) => write!(f, "{v}")
         }
+    }
+}
+
+impl Display for Typ {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+	Display::fmt(&self.typ, f)
     }
 }

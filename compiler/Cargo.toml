@@ -1,6 +1,6 @@
 [package]
 name = "compiler"
-version = "0.1.0"
+version = "0.0.1"
 edition = "2021"
 
 [build-dependencies]
@@ -10,3 +10,4 @@ lalrpop = { version = "0.19.8", default-features = false }
 logos = "0.12.1"
 logos-derive = "0.12.1"
 lalrpop-util = "0.19.8"
+annotate-snippets = "0.9.1"

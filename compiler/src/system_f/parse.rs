@@ -4,13 +4,12 @@ use super::{ast, lex::{LexerWrap, Token}};
 pub mod utils {
     use crate::system_f::ast::*;
 
-    pub fn make_binop(l: Expr, op: &str, r: Expr) -> Expr {
-        let rexp = RawExpr::Binop {
+    pub fn make_binop(l: Expr, op: &str, r: Expr) -> RawExpr {
+        RawExpr::Binop {
             op: Binary::of_str(op),
             lhs: Box::new(l),
             rhs: Box::new(r)
-        };
-        Expr::new(rexp)
+        }
     }
 }
 

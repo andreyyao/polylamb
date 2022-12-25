@@ -33,6 +33,7 @@ fn token_int_lit<'a>(lex: &mut Lexer<'a, Token<'a>>) -> Option<i64> {
 pub enum Token<'a> {
 
     // Punctuations
+    #[token("|")] Bar,
     #[token(".")] Dot,
     #[token(",")] Comma,
     #[token(":")] Colon,
@@ -41,7 +42,7 @@ pub enum Token<'a> {
     #[token(")")] RParen,
     #[token("[")] LBrack,
     #[token("]")] RBrack,
-    #[token("|")] Bar,
+    #[token("_")] Underscore,
     #[token("->")] Arrow,
     #[token("=>")] DoubleArrow,
 

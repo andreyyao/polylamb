@@ -1,51 +1,52 @@
 use crate::system_f::{ast, lex, parse::utils};
-use ast::{Prog, Expr, RawExpr};
+use ast::{Prog, Decl, Expr, RawExpr, Typ, RawTyp};
 
 grammar<'a>;
 
 // Using tokens from Logos
 extern {
-  type Location = usize;
-  type Error = lex::LexicalError;
-  enum lex::Token<'a> {
-    "."         => lex::Token::Dot,
-    ","         => lex::Token::Comma,
-    ":"         => lex::Token::Colon,
-    "="         => lex::Token::Equal,
-    "("         => lex::Token::LParen,
-    ")"         => lex::Token::RParen,
-    "["         => lex::Token::LBrack,
-    "]"         => lex::Token::RBrack,
-    "|"         => lex::Token::Bar,
-    "->"        => lex::Token::Arrow,
-    "=>"        => lex::Token::DoubleArrow,
-    "*"         => lex::Token::Mul,
-    "infix6"    => lex::Token::Infix6(<&'a str>),
-    "infix4"    => lex::Token::Infix4(<&'a str>),
-    "infix3"    => lex::Token::Infix3(<&'a str>),
-    "eid"       => lex::Token::ExpId(<&'a str>),
-    "tid"       => lex::Token::TypId(<&'a str>),
-    "intLit"    => lex::Token::IntLit(<i64>),
-    "boolLit"   => lex::Token::BoolLit(<bool>),
-    "unitLit"   => lex::Token::UnitLit,
-    "if"        => lex::Token::If,
-    "then"      => lex::Token::Then,
-    "else"      => lex::Token::Else,
-    "let"       => lex::Token::Let,
-    "in"        => lex::Token::In,
-    "match"     => lex::Token::Match,
-    "with"      => lex::Token::With,
-    "end"       => lex::Token::End,
-    "any"       => lex::Token::Any,
-    "lambda"    => lex::Token::Lambda,
-    "forall"    => lex::Token::Forall,
-    "Int"       => lex::Token::TInt,
-    "Bool"      => lex::Token::TBool,
-    "Unit"      => lex::Token::TUnit
-  }
+    type Location = usize;
+    type Error = lex::LexicalError;
+    enum lex::Token<'a> {
+        "|"         => lex::Token::Bar,
+        "."         => lex::Token::Dot,
+        ","         => lex::Token::Comma,
+        ":"         => lex::Token::Colon,
+        "="         => lex::Token::Equal,
+        "("         => lex::Token::LParen,
+        ")"         => lex::Token::RParen,
+        "["         => lex::Token::LBrack,
+        "]"         => lex::Token::RBrack,
+        "_"      	=> lex::Token::Underscore,
+        "->"        => lex::Token::Arrow,
+        "=>"        => lex::Token::DoubleArrow,
+        "*"         => lex::Token::Mul,
+        "infix6"    => lex::Token::Infix6(<&'a str>),
+        "infix4"    => lex::Token::Infix4(<&'a str>),
+        "infix3"    => lex::Token::Infix3(<&'a str>),
+        "eid"       => lex::Token::ExpId(<&'a str>),
+        "tid"       => lex::Token::TypId(<&'a str>),
+        "intLit"    => lex::Token::IntLit(<i64>),
+        "boolLit"   => lex::Token::BoolLit(<bool>),
+        "unitLit"   => lex::Token::UnitLit,
+        "if"        => lex::Token::If,
+        "then"      => lex::Token::Then,
+        "else"      => lex::Token::Else,
+        "let"       => lex::Token::Let,
+        "in"        => lex::Token::In,
+        "match"     => lex::Token::Match,
+        "with"      => lex::Token::With,
+        "end"       => lex::Token::End,
+        "any"       => lex::Token::Any,
+        "lambda"    => lex::Token::Lambda,
+        "forall"    => lex::Token::Forall,
+        "Int"       => lex::Token::TInt,
+        "Bool"      => lex::Token::TBool,
+        "Unit"      => lex::Token::TUnit
+    }
 }
 
-pub Prog: ast::Prog = {
+pub Prog: Prog = {
     <ds: Decl+> => {
         let mut m = Prog::new();
         for d in ds {
@@ -57,9 +58,7 @@ pub Prog: ast::Prog = {
 
 pub Decl: ast::Decl = {
     "let" <v: "eid"> ":" <t: TypExpr> "=" <e: ValExpr> =>
-        ast::Decl{ id: v.to_string(),
-                   sig: t,
-                   body: e }
+        Decl{ id: v.to_string(), sig: t, body: e }
 }
 
 //////////////////////////////////////////////////
@@ -73,115 +72,141 @@ pub ValExpr: Expr = {
     <e: ValExprMatch> => e
 }
 
-ValExprIf: ast::Expr = {
-    "if" <e1: ValExpr> "then" <e2: ValExpr> "else" <e3: ValExpr> =>
-        Expr::new(ast::RawExpr::If{
-            cond: Box::new(e1),
-            t: Box::new(e2),
-            f: Box::new(e3)
-        })
+ValExprIf: Expr = {
+    <l: @L> "if" <e1: ValExpr> "then" <e2: ValExpr> "else" <e3: ValExpr> <r: @R> =>
+        Expr{
+            expr: RawExpr::If{
+                cond: Box::new(e1),
+                t: Box::new(e2),
+                f: Box::new(e3)
+            }
+	    span = Span::new(l, r)
+        }
 }
 
-ValExprLet: ast::Expr = {
-    "let" <a: Annot> "=" <e1: ValExpr> "in" <e2: ValExpr> =>
-        Expr::new(ast::RawExpr::Let{
-            annot: a,
-            exp: Box::new(e1),
-            body: Box::new(e2)
-        })
+ValExprLet: Expr = {
+    <l: @L> "let" <a: Annot> "=" <e1: ValExpr> "in" <e2: ValExpr> <r: @R> =>
+        Expr{
+	    expr: RawExpr::Let{
+	        annot: a, exp: Box::new(e1), body: Box::new(e2)
+	    },
+	    span: Span::new(l, r)
+	}
 }
 
-ValExprMatch: ast::Expr = {
-    "match" <e: ValExpr> "with" <c: Pattern> "=>" <b: ValExpr> "end" =>
-        Expr::new(RawExpr::Match{
-            exp: Box::new(e),
-            clause: (c, Box::new(b))
-        })
+ValExprMatch: Expr = {
+    <l: @L> "match" <e: ValExpr> "with" <c: Pattern> "=>" <b: ValExpr> "end" <r: @R> =>
+        Expr{
+	    expr: RawExpr::Match{
+	        exp: Box::new(e), clause: (c, Box::new(b))
+            };
+	    span = Span::new(l, r)
+	}
 }
 
 
 ///////////// Precedence babyyyy /////////////
 
 // Lambda and forall. Expression body extends as far as possible
-ValExpr2: ast::Expr = {
-    "lambda" <a: Sep<Annot, ",">> "." <e: ValExpr> =>
-         Expr::new(RawExpr::Lambda{
-             args: a,
-             body: Box::new(e)
-         }),
-    "any" <a: TypVar> "." <e: ValExpr> =>
-         Expr::new(RawExpr::Any{
-             poly: a,
-             body: Box::new(e),
-         }),
+ValExpr2: Expr = {
+    <l: @L> "lambda" <a: Sep<Annot, ",">> "." <e: ValExpr> <r: @R> =>
+        Expr{
+	    expr: RawExpr::Lambda{ args: a, body: Box::new(e) },
+	    span: Span::new(l, r)
+	},
+    <l: @L> "any" <a: TypVar> "." <e: ValExpr> <r: @R> =>
+        Expr{
+	    expr: RawExpr::Any{ poly: a, body: Box::new(e) },
+	    span: Span::new(l, r)
+	},
     <e: ValExpr3> => e
 }
 
 // Binops with && ||, precedence 3, left assoc
-ValExpr3: ast::Expr = {
-    <l: ValExpr3> <o: "infix3"> <r:ValExpr4> => utils::make_binop(l, o, r),
+ValExpr3: Expr = {
+    <l: @L> <e1: ValExpr3> <o: "infix3"> <e2:ValExpr4> <r: @R> =>
+        Expr{
+            expr: utils::make_binop(e1, o, e2),
+	    span: Span::new(l, r)
+	},
     <e: ValExpr4> => e
 }
 
 // Binops with < > == !=, precedence 4, left assoc
-ValExpr4: ast::Expr = {
-    <l: ValExpr4> <o: "infix4"> <r: ValExpr6> => utils::make_binop(l, o, r),
+ValExpr4: Expr = {
+    <l: @L> <e1: ValExpr4> <o: "infix4"> <e2: ValExpr6> <r: @R> =>
+        Expr{
+            expr: utils::make_binop(e1, o, e2),
+	    span: Span::new(l, r)
+	},
     <e: ValExpr6> => e
 }
 
 // Binops with + -, precedence 6, left assoc
-ValExpr6: ast::Expr = {
-    <l: ValExpr6> <o: "infix6"> <r: ValExpr7> => utils::make_binop(l, o, r),
+ValExpr6: Expr = {
+    <l: @L> <e1: ValExpr6> <o: "infix6"> <e2: ValExpr7> <r: @R> =>
+        Expr{
+            expr: utils::make_binop(e1, o, e2),
+	    span: Span::new(l, r)
+	},
     <e: ValExpr7> => e
 }
 
 // Binops with *, precedence 7, left assoc
-ValExpr7: ast::Expr = {
-    <l: ValExpr7> "*" <r: ValExpr8> => utils::make_binop(l, "*", r),
+ValExpr7: Expr = {
+    <l: @L> <e1: ValExpr6> "*" <e2: ValExpr7> <r: @R> =>
+        Expr{
+            expr: utils::make_binop(e1, "*", e2),
+	    span: Span::new(l, r)
+	},
     <e: ValExpr8> => e
 }
 
 // Application, precedence 8, left assoc
-ValExpr8: ast::Expr = {
+ValExpr8: Expr = {
     // Expression application
-    <e1: ValExpr8> <e2: ValExprAtom> =>
-        Expr::new(RawExpr::EApp{
-            exp: Box::new(e1),
-            arg: Box::new(e2)
-        }),
+    <l: @L> <e1: ValExpr8> <e2: ValExprAtom> <l: @R> =>
+        Expr{
+            expr: RawExpr::EApp{ exp: Box::new(e1), arg: Box::new(e2) },
+	    span: Span::new(l, r)
+	},
     // Type application
-    <e: ValExpr8> "[" <t: TypExpr> "]" =>
-        Expr::new(RawExpr::TApp{
-            exp: Box::new(e),
-            arg: t,
-        }),
+    <l: @L> <e: ValExpr8> "[" <t: TypExpr> "]" <r: @R> =>
+        Expr{
+            expr: RawExpr::TApp{ exp: Box::new(e), arg: t },
+	    span: Span::new(l, r)
+	},
     <e: ValExprAtom> => e
 }
 
-
 // Atomic expressions have no ambiguities. Highest precedence
-ValExprAtom: ast::Expr = {
-    "intLit" =>
-        Expr::new(RawExpr::Con{
-            val: ast::Constant::Integer(<>),
-        }),
-    "boolLit" =>
-        Expr::new(RawExpr::Con{
-            val: ast::Constant::Boolean(<>),
-        }),
-    "unitLit" =>
-        Expr::new(RawExpr::Con{
-            val: ast::Constant::Null,
-        }),
-    "eid" =>
-        Expr::new(RawExpr::Var{
-            id: <>.to_string()
-        }),
-    "(" <es: SepMulti<ValExpr, ",">> ")" =>
-        Expr::new(RawExpr::Tuple{
-            entries: es
-        }),
-    "(" <e: ValExpr> ")" => e,
+ValExprAtom: Expr = {
+    <l: @L> "intLit" <r: @R> =>
+        Expr{
+	    expr: RawExpr::Con{ val: ast::Constant::Integer(<>) },
+	    span: Span::new(l, r)
+	},
+    <l: @L> "boolLit" <r: @R> =>
+        Expr{
+	    expr: RawExpr::Con{ val: ast::Constant::Boolean(<>) },
+	    span: Span::new(l, r)
+	},
+    <l: @L> "unitLit" <r: @R> =>
+        Expr{
+	    expr: RawExpr::Con{ val: ast::Constant::Null },
+	    span: Span::new(l, r)
+	},
+    <l: @L> "eid" <r: @R> =>
+        Expr{
+	    expr: RawExpr::Var{ id: <>.to_string() },
+	    span: Span::new(l, r)
+	},
+    <l: @L> "(" <es: SepMulti<ValExpr, ",">> ")" <r: @R> =>
+        Expr{
+	    expr: RawExpr::Tuple{ entries: es },
+	    span: Span::new(l, r)
+	},
+    <l: @L> "(" <e: ValExpr> ")" <r: @R> => e,
 }
 
 //////////////////////////////////////////////////
@@ -192,28 +217,28 @@ pub TypExpr: ast::Typ = {
     <t: TypExprForall> => t
 }
 
-TypExprForall: ast::Typ = {
+TypExprForall: Typ = {
     "forall" <t: "tid"> "." <te: TypExpr> =>
         ast::Typ::Forall(t.to_string(), Box::new(te)),
      <t: TypExprArrow> => t
 }
 
-TypExprArrow: ast::Typ = {
+TypExprArrow: Typ = {
     <t1: TypExprProd> "->" <t2: TypExprArrow> =>
         ast::Typ::Arrow(Box::new(t1), Box::new(t2)),
     <t: TypExprProd> => t
 }
 
-TypExprProd: ast::Typ = {
+TypExprProd: Typ = {
     <ts: Sep<TypExprAtom, "*">> =>
         ast::Typ::Prod(ts)
 }
 
-TypExprAtom: ast::Typ = {
-    "Int" => ast::Typ::Int,
-    "Bool" => ast::Typ::Bool,
-    "Unit" => ast::Typ::Unit,
-    <v: TypVar> => ast::Typ::TVar(v),
+TypExprAtom: Typ = {
+    "Int" => Typ::Int,
+    "Bool" => Typ::Bool,
+    "Unit" => Typ::Unit,
+    <v: TypVar> => Typ::TVar(v),
     "(" <t: TypExpr> ")" => t
 }
 
@@ -241,7 +266,8 @@ Pattern: ast::Pattern = {
     "(" <multi: SepMulti<Pattern, ",">> ")" =>
         ast::Pattern::Tuple(multi),
     "(" <a: "eid"> ")" =>
-        ast::Pattern::Var(a.to_string())
+        ast::Pattern::Var(a.to_string()),
+    "_" => ast::Pattern::Wildcard
 }
 
 
