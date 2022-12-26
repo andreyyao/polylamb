@@ -22,7 +22,7 @@ pub fn parse_val_expr(input: &str) -> Result<ast::Expr, ParseError> {
 }
 
 /// Parses a type expression
-pub fn parse_typ_expr(input: &str) -> Result<ast::Typ, ParseError> {
+pub fn parse_typ_expr(input: &str) -> Result<ast::Type, ParseError> {
     let lexer = LexerWrap::new(input);
     parser::TypExprParser::new().parse(lexer)
 }

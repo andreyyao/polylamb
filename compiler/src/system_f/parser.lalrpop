@@ -1,5 +1,7 @@
 use crate::system_f::{ast, lex, parse::utils};
-use ast::{Prog, Decl, Expr, RawExpr, Typ, RawTyp};
+use crate::system_f::ast::Span;
+use ast::{Prog, Decl, Expr, RawExpr, Type, RawType};
+
 
 grammar<'a>;
 
@@ -17,7 +19,7 @@ extern {
         ")"         => lex::Token::RParen,
         "["         => lex::Token::LBrack,
         "]"         => lex::Token::RBrack,
-        "_"      	=> lex::Token::Underscore,
+        "_"         => lex::Token::Underscore,
         "->"        => lex::Token::Arrow,
         "=>"        => lex::Token::DoubleArrow,
         "*"         => lex::Token::Mul,
@@ -50,7 +52,7 @@ pub Prog: Prog = {
     <ds: Decl+> => {
         let mut m = Prog::new();
         for d in ds {
-            m.insert(d.id.to_string(), d);
+            m.declarations.insert(d.id.to_string(), d);
         }
         m
     }
@@ -74,33 +76,33 @@ pub ValExpr: Expr = {
 
 ValExprIf: Expr = {
     <l: @L> "if" <e1: ValExpr> "then" <e2: ValExpr> "else" <e3: ValExpr> <r: @R> =>
-        Expr{
+        Expr {
             expr: RawExpr::If{
                 cond: Box::new(e1),
                 t: Box::new(e2),
                 f: Box::new(e3)
-            }
-	    span = Span::new(l, r)
+            },
+	    span: Some(Span::new(l, r))
         }
 }
 
 ValExprLet: Expr = {
     <l: @L> "let" <a: Annot> "=" <e1: ValExpr> "in" <e2: ValExpr> <r: @R> =>
-        Expr{
+        Expr {
 	    expr: RawExpr::Let{
 	        annot: a, exp: Box::new(e1), body: Box::new(e2)
 	    },
-	    span: Span::new(l, r)
+	    span: Some(Span::new(l, r))
 	}
 }
 
 ValExprMatch: Expr = {
     <l: @L> "match" <e: ValExpr> "with" <c: Pattern> "=>" <b: ValExpr> "end" <r: @R> =>
-        Expr{
+        Expr {
 	    expr: RawExpr::Match{
 	        exp: Box::new(e), clause: (c, Box::new(b))
-            };
-	    span = Span::new(l, r)
+            },
+	    span: Some(Span::new(l, r))
 	}
 }
 
@@ -110,14 +112,14 @@ ValExprMatch: Expr = {
 // Lambda and forall. Expression body extends as far as possible
 ValExpr2: Expr = {
     <l: @L> "lambda" <a: Sep<Annot, ",">> "." <e: ValExpr> <r: @R> =>
-        Expr{
+        Expr {
 	    expr: RawExpr::Lambda{ args: a, body: Box::new(e) },
-	    span: Span::new(l, r)
+	    span: Some(Span::new(l, r))
 	},
     <l: @L> "any" <a: TypVar> "." <e: ValExpr> <r: @R> =>
-        Expr{
+        Expr {
 	    expr: RawExpr::Any{ poly: a, body: Box::new(e) },
-	    span: Span::new(l, r)
+	    span: Some(Span::new(l, r))
 	},
     <e: ValExpr3> => e
 }
@@ -125,9 +127,9 @@ ValExpr2: Expr = {
 // Binops with && ||, precedence 3, left assoc
 ValExpr3: Expr = {
     <l: @L> <e1: ValExpr3> <o: "infix3"> <e2:ValExpr4> <r: @R> =>
-        Expr{
+        Expr {
             expr: utils::make_binop(e1, o, e2),
-	    span: Span::new(l, r)
+	    span: Some(Span::new(l, r))
 	},
     <e: ValExpr4> => e
 }
@@ -135,9 +137,9 @@ ValExpr3: Expr = {
 // Binops with < > == !=, precedence 4, left assoc
 ValExpr4: Expr = {
     <l: @L> <e1: ValExpr4> <o: "infix4"> <e2: ValExpr6> <r: @R> =>
-        Expr{
+        Expr {
             expr: utils::make_binop(e1, o, e2),
-	    span: Span::new(l, r)
+	    span: Some(Span::new(l, r))
 	},
     <e: ValExpr6> => e
 }
@@ -145,19 +147,19 @@ ValExpr4: Expr = {
 // Binops with + -, precedence 6, left assoc
 ValExpr6: Expr = {
     <l: @L> <e1: ValExpr6> <o: "infix6"> <e2: ValExpr7> <r: @R> =>
-        Expr{
+        Expr {
             expr: utils::make_binop(e1, o, e2),
-	    span: Span::new(l, r)
+	    span: Some(Span::new(l, r))
 	},
     <e: ValExpr7> => e
 }
 
 // Binops with *, precedence 7, left assoc
 ValExpr7: Expr = {
-    <l: @L> <e1: ValExpr6> "*" <e2: ValExpr7> <r: @R> =>
-        Expr{
+    <l: @L> <e1: ValExpr7> "*" <e2: ValExpr8> <r: @R> =>
+        Expr {
             expr: utils::make_binop(e1, "*", e2),
-	    span: Span::new(l, r)
+	    span: Some(Span::new(l, r))
 	},
     <e: ValExpr8> => e
 }
@@ -165,80 +167,92 @@ ValExpr7: Expr = {
 // Application, precedence 8, left assoc
 ValExpr8: Expr = {
     // Expression application
-    <l: @L> <e1: ValExpr8> <e2: ValExprAtom> <l: @R> =>
-        Expr{
+    <l: @L> <e1: ValExpr8> <e2: ValExprAtom> <r: @R> =>
+        Expr {
             expr: RawExpr::EApp{ exp: Box::new(e1), arg: Box::new(e2) },
-	    span: Span::new(l, r)
+	    span: Some(Span::new(l, r))
 	},
     // Type application
     <l: @L> <e: ValExpr8> "[" <t: TypExpr> "]" <r: @R> =>
-        Expr{
+        Expr {
             expr: RawExpr::TApp{ exp: Box::new(e), arg: t },
-	    span: Span::new(l, r)
+	    span: Some(Span::new(l, r))
 	},
     <e: ValExprAtom> => e
 }
 
 // Atomic expressions have no ambiguities. Highest precedence
 ValExprAtom: Expr = {
-    <l: @L> "intLit" <r: @R> =>
-        Expr{
-	    expr: RawExpr::Con{ val: ast::Constant::Integer(<>) },
-	    span: Span::new(l, r)
+    <l: @L> <z: "intLit"> <r: @R> =>
+        Expr {
+	    expr: RawExpr::Con{ val: ast::Constant::Integer(z) },
+	    span: Some(Span::new(l, r))
 	},
-    <l: @L> "boolLit" <r: @R> =>
-        Expr{
-	    expr: RawExpr::Con{ val: ast::Constant::Boolean(<>) },
-	    span: Span::new(l, r)
+    <l: @L> <b: "boolLit"> <r: @R> =>
+        Expr {
+	    expr: RawExpr::Con{ val: ast::Constant::Boolean(b) },
+	    span: Some(Span::new(l, r))
 	},
     <l: @L> "unitLit" <r: @R> =>
-        Expr{
+        Expr {
 	    expr: RawExpr::Con{ val: ast::Constant::Null },
-	    span: Span::new(l, r)
+	    span: Some(Span::new(l, r))
 	},
-    <l: @L> "eid" <r: @R> =>
-        Expr{
-	    expr: RawExpr::Var{ id: <>.to_string() },
-	    span: Span::new(l, r)
+    <l: @L> <v: "eid"> <r: @R> =>
+        Expr {
+	    expr: RawExpr::Var{ id: v.to_string() },
+	    span: Some(Span::new(l, r))
 	},
     <l: @L> "(" <es: SepMulti<ValExpr, ",">> ")" <r: @R> =>
-        Expr{
+        Expr {
 	    expr: RawExpr::Tuple{ entries: es },
-	    span: Span::new(l, r)
+	    span: Some(Span::new(l, r))
 	},
-    <l: @L> "(" <e: ValExpr> ")" <r: @R> => e,
+    "(" <e: ValExpr> ")" => e,
 }
 
 //////////////////////////////////////////////////
 ///////////////////// TYPE ///////////////////////
 //////////////////////////////////////////////////
 
-pub TypExpr: ast::Typ = {
+pub TypExpr: Type = {
     <t: TypExprForall> => t
 }
 
-TypExprForall: Typ = {
-    "forall" <t: "tid"> "." <te: TypExpr> =>
-        ast::Typ::Forall(t.to_string(), Box::new(te)),
-     <t: TypExprArrow> => t
+TypExprForall: Type = {
+    <l: @L> "forall" <tv: "tid"> "." <te: TypExpr> <r: @R> =>
+	Type { typ: RawType::Forall(tv.to_string(), Box::new(te)), span: Some(Span::new(l, r)) },
+    <t: TypExprArrow> => t
 }
 
-TypExprArrow: Typ = {
-    <t1: TypExprProd> "->" <t2: TypExprArrow> =>
-        ast::Typ::Arrow(Box::new(t1), Box::new(t2)),
+TypExprArrow: Type = {
+    <l: @L> <t1: TypExprProd> "->" <t2: TypExprArrow> <r: @R> =>
+        Type { typ: RawType::Arrow(Box::new(t1), Box::new(t2)), span: Some(Span::new(l, r)) },
     <t: TypExprProd> => t
 }
 
-TypExprProd: Typ = {
-    <ts: Sep<TypExprAtom, "*">> =>
-        ast::Typ::Prod(ts)
+TypExprProd: Type = {
+    <l: @L> <ts: Sep<TypExprApp, "*">> <r: @R> =>
+        Type { typ: RawType::Prod(ts), span: Some(Span::new(l, r)) },
 }
 
-TypExprAtom: Typ = {
-    "Int" => Typ::Int,
-    "Bool" => Typ::Bool,
-    "Unit" => Typ::Unit,
-    <v: TypVar> => Typ::TVar(v),
+TypExprApp: Type = {
+    <l: @L> <t1: TypExprAtom> <t2: TypExprAtom> <r: @R> =>
+        Type {
+	    typ: RawType::App(Box::new(t1), Box::new(t2)),
+	    span: Some(Span::new(l, r))
+	}
+}
+
+TypExprAtom: Type = {
+    <l: @L> "Int" <r: @R> =>
+        Type { typ: RawType::Int, span: Some(Span::new(l, r)) },
+    <l: @L> "Bool" <r: @R> =>
+        Type { typ: RawType::Bool, span: Some(Span::new(l, r)) },
+    <l: @L> "Unit" <r: @R> =>
+        Type { typ: RawType::Unit, span: Some(Span::new(l, r)) },
+    <l: @L> <v: TypVar> <r: @R> =>
+        Type { typ: RawType::TVar(v), span: Some(Span::new(l, r)) },
     "(" <t: TypExpr> ")" => t
 }
 
@@ -271,11 +285,13 @@ Pattern: ast::Pattern = {
 }
 
 
-// Type annotated identifier.
+// Type annotated identifier
 Annot: ast::Annot = {
     <v1: "eid"> ":" <t: TypExpr> =>
-        ast::Annot{ var: v1.to_string(),
-                    typ: t }
+        ast::Annot{
+	    var: v1.to_string(),
+            typ: t
+        }
 }
 
 //////////// END HELPERS /////////////

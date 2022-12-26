@@ -1,36 +1,36 @@
-/*! Type checking for the System F AST.
+/*! Typee checking for the System F AST.
 Everything is straightforward, but do note that
 we use capture-avoiding substitution for type variables. */
 
 use crate::{util::context::Context, system_f::ast::Binary};
-use super::ast::{RawExpr, Id, Typ, Expr, Decl, Prog, Pattern, Constant};
+use super::ast::{RawType, Type, RawExpr, Expr, Decl, Prog, Pattern, Constant};
 
 
-/** Type-Checks the expression `expr`. `ctxt` is a map
+/** Typee-Checks the expression `expr`. `ctxt` is a map
 from expression variables to types. */
-fn check(expr: &RawExpr, ctxt: &mut Context<Typ>) -> Typ {
+fn check<'a>(expr: &RawExpr, ctxt: &mut Context<RawType>) -> RawType {
     use RawExpr::*;
     ctxt.enter();
     let typ = match expr {
         Con { val } => match val {
-            Constant::Integer(_) => Typ::Int,
-            Constant::Boolean(_) => Typ::Bool,
-            Constant::Null => Typ::Unit
+            Constant::Integer(_) => RawType::Int,
+            Constant::Boolean(_) => RawType::Bool,
+            Constant::Null => RawType::Unit
         },
         Var { id } => ctxt.get(&id).clone(),
         Let { annot, exp, body } => {
             ctxt.bind(&annot.var, &annot.typ);
             let typ = check(&exp.expr, ctxt);
             // TODO change assert to error
-            assert_eq!(typ, annot.typ);
+            assert_eq!(typ, annot.typ.typ);
 	    typ
         },
         EApp { exp, arg } => {
             let exp_t = check(&exp.expr, ctxt);
             let arg_t = check(&arg.expr, ctxt);
             match exp_t {
-                Typ::Arrow(t1, t2) => {
-                    if t1.as_ref() == &arg_t { t2.as_ref().clone() }
+                RawType::Arrow(t1, t2) => {
+                    if t1.typ == arg_t { t2.as_ref().clone().typ }
                     else { panic!("Oh no") }
                 },
                 _ => panic!("Expected function type")
@@ -39,22 +39,22 @@ fn check(expr: &RawExpr, ctxt: &mut Context<Typ>) -> Typ {
         TApp { exp, arg } => {
             let exp_t = check(&exp.expr, ctxt);
             match exp_t {
-                Typ::Forall(tvar, mut typ) => {
+                RawType::Forall(tvar, mut typ) => {
                     substitute(&tvar, &arg, typ.as_mut());
-                    *typ
+                    typ.typ
                 },
                 _ => panic!("Hmm")
             }
         },
         Tuple { entries } =>
-            Typ::Prod(entries.iter().map(|e| check(e, ctxt)).collect()),
+            RawType::Prod(entries.iter().map(|e| Type::new(check(e, ctxt))).collect()),
         Match { exp, clause } => {
             let typ = check(exp, ctxt);
             /// Updates the context based on patterns
-            fn fit_pats(pat: &Pattern, typ: &Typ, ctxt: &mut Context<Typ>) {
+            fn fit_pats(pat: &Pattern, typ: &RawType, ctxt: &mut Context<RawType>) {
                 match (pat, typ) {
                     (Pattern::Var(id), _) => ctxt.bind(id, typ),
-                    (Pattern::Tuple(pats), Typ::Prod(typs)) => {
+                    (Pattern::Tuple(pats), RawType::Prod(typs)) => {
                         assert_eq!(pats.len(), typs.len());
                         for (p, t) in pats.iter().zip(typs.iter()) {
                             fit_pats(p, t, ctxt)
@@ -71,13 +71,13 @@ fn check(expr: &RawExpr, ctxt: &mut Context<Typ>) -> Typ {
             let lt = check(&lhs.expr, ctxt);
             let rt = check(&rhs.expr, ctxt);
             match (lt, rt) {
-                (Typ::Int, Typ::Int) => match op {
-                    Add | Sub | Mul => Typ::Int,
-                    Eq | Ne | Gt | Lt => Typ::Bool,
+                (RawType::Int, RawType::Int) => match op {
+                    Add | Sub | Mul => RawType::Int,
+                    Eq | Ne | Gt | Lt => RawType::Bool,
                     _ => panic!("Expecting bool args for AND/OR")
                 },
-                (Typ::Bool, Typ::Bool) => match op {
-                    And | Or => Typ::Bool,
+                (RawType::Bool, RawType::Bool) => match op {
+                    And | Or => RawType::Bool,
                     _ => panic!("Expecting int args for binop, got bool")
                 },
                 _ => panic!("Wrong binop types")
@@ -94,7 +94,7 @@ fn check(expr: &RawExpr, ctxt: &mut Context<Typ>) -> Typ {
             let typ_cond = check(cond, ctxt);
             let typ_t = check(t, ctxt);
             let typ_f = check(f, ctxt);
-            assert_eq!(typ_cond, Typ::Bool);
+            assert_eq!(typ_cond, RawType::Bool);
             assert_eq!(typ_t, typ_f);
             typ_t
         }
@@ -104,7 +104,7 @@ fn check(expr: &RawExpr, ctxt: &mut Context<Typ>) -> Typ {
 }
 
 pub fn check_expr(expr: &mut Expr) {
-    let mut ctxt = Context::<Typ>::new();
+    let mut ctxt = Context::<RawType>::new();
     let typ = check(&expr.expr, &mut ctxt);
 }
 
@@ -121,8 +121,8 @@ pub fn check_expr(expr: &mut Expr) {
 `target`: The type to replace with
 `typ`: The type in which to perform the replacement
 */
-fn substitute(tvar: &String, target: &Typ, typ: &mut Typ) {
-    use Typ::*;
+fn substitute(tvar: &String, target: &RawType, typ: &mut RawType) {
+    use RawType::*;
     match typ {
         TVar(var) if var == tvar => { *typ = target.clone() },
         Prod(typs) =>
