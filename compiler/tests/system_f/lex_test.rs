@@ -8,7 +8,7 @@ fn check_one(input: &str, token: Token) {
     assert_eq!(lexer.slice(), input);
 }
 
-const INT_PAIRS : [(&str, i64); 7] = [
+const INT_PAIRS: [(&str, i64); 7] = [
     ("02020112", 2020112),
     ("12638124", 12638124),
     ("127436", 127436),
@@ -19,28 +19,49 @@ const INT_PAIRS : [(&str, i64); 7] = [
 ];
 
 const EXP_IDENTS: [&str; 21] = [
-    "abfuwegvdw", "aYUSDFIS", "aGgiIGoVoD",
-    "xA12796132_", "b____", "c1s1j7n8O9",
-    "llllllllll", "wtf", "decoy_rubberband",
-    "derive_macro", "lololol", "mitochondria",
-    "ahhhhhhh", "folder", "map",
-    "not2", "anotb", "notnot",
-    "ifthenelse", "hehe", "h1h3oi4bh54o"
+    "abfuwegvdw",
+    "aYUSDFIS",
+    "aGgiIGoVoD",
+    "xA12796132_",
+    "b____",
+    "c1s1j7n8O9",
+    "llllllllll",
+    "wtf",
+    "decoy_rubberband",
+    "derive_macro",
+    "lololol",
+    "mitochondria",
+    "ahhhhhhh",
+    "folder",
+    "map",
+    "not2",
+    "anotb",
+    "notnot",
+    "ifthenelse",
+    "hehe",
+    "h1h3oi4bh54o",
 ];
 
 const TYP_IDENTS: [&str; 12] = [
-    "Float", "A__ababa", "Object",
-    "Tensor", "CS6120", "HahaDecoyRubberband",
-    "Reduce", "Reuse", "Recycle",
-    "ASYFIA7EWGF", "A_jigfwe_vtw1fwf12132y____",
-    "ProjectContractChargingPeriodProjectAccountReferenceVM"
+    "Float",
+    "A__ababa",
+    "Object",
+    "Tensor",
+    "CS6120",
+    "HahaDecoyRubberband",
+    "Reduce",
+    "Reuse",
+    "Recycle",
+    "ASYFIA7EWGF",
+    "A_jigfwe_vtw1fwf12132y____",
+    "ProjectContractChargingPeriodProjectAccountReferenceVM",
 ];
 
 const COMMENTS: [&str; 4] = [
     "/**/",
     "/* 2 + 3 = 5 */",
     "/* let x : Int = 1 in x */",
-    "\n/*\t\t\n boom shakalaka. */\n\t"
+    "\n/*\t\t\n boom shakalaka. */\n\t",
 ];
 
 #[test]
@@ -81,12 +102,18 @@ fn comments() {
 
 #[test]
 fn infixes() {
-    let ops6 = [ "+", "-"];
-    let ops4 = [ "<", ">", "==", "!=" ];
-    let ops3 = [ "&&", "||" ];
+    let ops6 = ["+", "-"];
+    let ops4 = ["<", ">", "==", "!="];
+    let ops3 = ["&&", "||"];
     check_one("*", Token::Mul);
     check_one("=", Token::Equal);
-    for input in ops6 { check_one(input, Token::Infix6(input)); }
-    for input in ops4 { check_one(input, Token::Infix4(input)); }
-    for input in ops3 { check_one(input, Token::Infix3(input)); }
+    for input in ops6 {
+        check_one(input, Token::Infix6(input));
+    }
+    for input in ops4 {
+        check_one(input, Token::Infix4(input));
+    }
+    for input in ops3 {
+        check_one(input, Token::Infix3(input));
+    }
 }

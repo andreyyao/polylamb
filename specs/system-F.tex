@@ -1,75 +1,85 @@
 \documentclass[12pt]{article}
 \usepackage[letterpaper,margin=0.5in]{geometry}
-\usepackage{amsmath,amsthm,amssymb,latexsym}
-\usepackage{tikz,float,dsfont,multirow,bbm}
-\usepackage{caption,subcaption,underscore,tikz-cd}
+\usepackage{amsmath,amssymb,latexsym}
+\usepackage{float,dsfont,multirow,underscore}
 \usepackage{indentfirst,multicol,mathtools,xcolor}
 \usepackage{upquote}
+\usepackage{lmodern}
 
 \date{\vspace{-5ex}}
 \author{\vspace{-5ex}}
 \title{System F Language Specification}
 
-\newcommand{\gm}[1]{{\textit{#1}}} %Grammars are italicized
-\newcommand{\kw}[1]{{\bf\texttt{#1}}} %System F keywords(verbatim)
-\newcommand{\hd}[1]{ \gm{#1} & := }
-\newcommand{\mt}[1]{$\overline{\text{#1}}$}
-\newcommand{\row}[2]{ & #1 &  & #2\\}
-\newcommand{\newrow}[2]{ & &#1 & &#2\\}
-\newcommand{\multisep}[2]{$^{(#1)\geq #2}$}
+\newcommand{\gm}[1]{$#1$} %Grammars are italicized
+\newcommand{\kwt}[1]{\textbf{\texttt{#1}}} % Keywords in Text mode
+\newcommand{\kwm}[1]{$\pmb{#1}$} % Keywords in Math mode
+\newcommand{\row}[3]{&\gm{#1} &:= &#2 &#3\\}
+\newcommand{\newrow}[2]{& & &#1 &#2\\}
+
+% Uniform column widths for table
+\def\ColOne{1.0cm}
+\def\ColTwo{0.5cm}
+\def\ColThree{7.0cm}
+\def\ColFour{7.0cm}
 
 \begin{document}
 \maketitle
 
 \section*{Syntax}
+\subsection*{Expressions}
 \begin{figure}[h]
   \centering
-  \begin{tabular}{l l l l l}
+  \begin{tabular}{l p{\ColOne} p{\ColTwo} p{\ColThree} p{\ColFour}}
     \hline
-    \hd{e} % Expressions
-    \row{\gm{lit}}{literals}
+    \row{e}{\gm{lit}}{literals}
     \newrow{\gm{eid}}{expression identifier}
-    \newrow{\kw{(}\gm{e}\kw{)}}{parenthesized}
-    \newrow{\gm{e}\kw{[}$\tau$\kw{]}}{type application}
-    \newrow{\gm{e$_1$} \gm{e$_2$}}{application}
-    \newrow{\kw{(}\mt{$e$}\multisep{,}{2}\kw{)}}{tuples}
-    \newrow{\gm{e$_1$} \gm{op} \gm{e$_2$}}{infix operation}
-    \newrow{\kw{$\Lambda$} \mt{\gm{tid}}\multisep{,}{1}\kw{.} \gm{e}}{parametric polymorphism}
-    \newrow{\kw{$\lambda$} \mt{\gm{eid} \kw{:} $\tau$}\multisep{,}{1}\kw{.} \gm{e}}{anonymous function}
-    \newrow{\kw{if} \gm{e$_1$} \kw{then} \gm{e$_2$} \kw{else} \gm{e$_3$}}{if expression}
-    \newrow{\kw{let} \gm{eid} \kw{:} $\tau$ \kw{\texttt{=}} \gm{e$_1$} \kw{in} \gm{e$_2$}}{let binding}
-    \newrow{\kw{match} \gm{e} \kw{with} $\overline{\text{\kw{|} \gm{pat} \texttt{=>} \gm{e}}}^{\,\kw{+}}$}{pattern destructing}
+    \newrow{\kwt{(}\gm{e}\kwt{)}}{parenthesized}
+    \newrow{\gm{e}\kwt{[}\gm{\tau}\kwt{]}}{type application}
+    \newrow{\gm{e_1} \gm{e_2}}{application}
+    \newrow{\gm{e_1} \gm{op} \gm{e_2}}{binary operation}
+    \newrow{\kwm{\lambda} \gm{pat^{\geq 1}}\kwt{.} \gm{e}}{lambda abstraction}
+    \newrow{\kwm{\Lambda} \gm{tid^{\geq 1}}\kwt{.} \gm{e}}{type abstraction}
+    \newrow{\kwt{(}\gm{e_1}, \gm{\dots}, \gm{e_n}\kwt{)}}{$n$-tuples, $n\geq 2$}
+    \newrow{\kwt{let} \gm{pat} \kwt{=} \gm{e_1} \kwt{in} \gm{e_2}}{let binding}
+    \newrow{\kwt{if} \gm{e_1} \kwt{then} \gm{e_2} \kwt{else} \gm{e_3}}{if expression}
     \hline
-    \hd{$\tau$}
-    \row{\gm{tid}}{type identifier}
-    \newrow{\kw{(}$\tau$\kw{)}}{parenthesized}
-    \newrow{\kw{$\tau_1$} \kw{$\tau_2$}}{type application}
-    \newrow{\gm{$\tau_1$} \kw{*} \gm{$\tau_2$}}{tuple types}
-    \newrow{\gm{$\tau_1$} \kw{->} \gm{$\tau_2$}}{arrow types}
-    \newrow{\kw{$\forall$} \mt{\gm{tid}}\multisep{,}{1}\kw{.} \gm{$\tau$}}{universal types}
-    \newrow{\kw{Int} $|$ \kw{Bool} $|$ \kw{Unit}}{built-in types}
+    \row{lit}{\kwt{null}}{unit literal: \kwt{Unit}}
+    \newrow{\kwt{true} $|$ \kwt{false}}{boolean literals: \kwt{Bool}}
+    \newrow{\dots $|$ \kwm{\sim}\kwt{2} $|$ \kwm{\sim}\kwt{1} $|$ \kwt{0} $|$ \kwt{1} $|$ \kwt{2} $|$ \dots}{64-bit signed ints: \kwt{Int}}
     \hline
-    \hd{lit}
-    \row{\kw{null}}{unit literal}
-    \newrow{\kw{true} $|$ \kw{false}}{boolean literals}
-    \newrow{\dots $|$ \kw{$\sim$2} $|$ \kw{$\sim$1} $|$ \kw{0} $|$ \kw{1} $|$ \kw{2} $|$ \dots}{64 bit signed integers}
+    \row{pat}{\gm{eid} \kwt{:} \gm{\tau}}{type-annotated variable}
+    \newrow{\kwt{(}\gm{pat_1}, \dots, \gm{pat_n}\kwt{)}}{$n$-tuple destructor, $n\geq 2$}
     \hline
-    \hd{pat}
-    \row{\texttt{_}}{wildcard, producing no bindings}
-    \newrow{\gm{eid} \kw{:} \gm{$\tau$}}{binds a single expression}
-    \newrow{\kw{(}\mt{\gm{pat}}\multisep{,}{2}\kw{)}}{destructs a tuple}
   \end{tabular}
 \end{figure}
 
-Multiple argument \kw{$\lambda$}'s (and \kw{$\forall$}'s) are syntactic sugar for nested functions. For instance,
-\[\text{\kw{$\lambda$} x: \kw{int}, y: \kw{int}. x + y}
-  \stackrel{\text{def}}{=}
-  \text{\kw{$\lambda$} x: \kw{int}. \kw{$\lambda$} y: \kw{int}. x + y}\]
+\subsection*{Types}
 
+\begin{figure}[h]
+  \centering
+  \begin{tabular}{l p{\ColOne} p{\ColTwo} p{\ColThree} p{\ColFour}}
+    \hline
+    \row{\tau}{\gm{\tau}}{types}
+    \newrow{\gm{tid}}{type identifier}
+    \newrow{\kwt{(}\gm{\tau}\kwt{)}}{parenthesized}
+    \newrow{\gm{\tau_1} \kwt{->} \gm{\tau_2}}{arrow types}
+    \newrow{\kwm{\,\forall} \gm{tid^{\geq 1}}\kwt{.} \gm{\tau}}{universal types}
+    \newrow{\gm{\tau_1} \kwt{*} \gm{\dots} \kwt{*} \gm{\tau_n}}{tuple types, $n\geq 2$}
+    \newrow{\kwt{Int} $|$ \kwt{Bool} $|$ \kwt{Unit}}{built-in types}
+    \hline
+  \end{tabular}
+\end{figure}
 
+\subsection*{Notes}
+Multiple argument \kwm{\lambda}'s, \kwm{\Lambda}'s, and \kwm{\forall}'s are syntactic sugar for nested versions. For instance,
+\begin{center}
+  $\lambda$ \texttt{x:Int y:Int.} \texttt{x} \texttt{+} \texttt{y}
+   $\stackrel{\text{def}}{=}$
+  $\lambda$ \texttt{x:Int.} $\lambda$ \texttt{y:Int.} \texttt{x} \texttt{+} \texttt{y}
+\end{center}
 
 \section*{Semantics:}
-CBV big step semantics with capture-avoiding substitution.
+CBV big step semantics.
 
 When a bound variable is bound again, the new binding takes over.
 

@@ -1,5 +1,8 @@
 lalrpop_mod!(pub parser, "/system_f/parser.rs"); // synthesized by LALRPOP
-use super::{ast, lex::{LexerWrap, Token}};
+use super::{
+    ast,
+    lex::{LexerWrap, Token},
+};
 
 pub mod utils {
     use crate::system_f::ast::*;
@@ -8,7 +11,7 @@ pub mod utils {
         RawExpr::Binop {
             op: Binary::of_str(op),
             lhs: Box::new(l),
-            rhs: Box::new(r)
+            rhs: Box::new(r),
         }
     }
 }

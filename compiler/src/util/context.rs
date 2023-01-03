@@ -8,12 +8,13 @@ pub struct Context<T: Clone> {
     diffs: Vec<Vec<(String, Option<T>)>>,
 }
 
-
 impl<T: Clone> Context<T> {
-
     /// Empty context
     pub fn new() -> Context<T> {
-        Context { map: HashMap::new(), diffs: vec![vec![]] }
+        Context {
+            map: HashMap::new(),
+            diffs: vec![vec![]],
+        }
     }
 
     /// Retrieve value of id
@@ -22,8 +23,8 @@ impl<T: Clone> Context<T> {
     }
 
     /// Bind a id to the current context
-    pub fn bind(&mut self, id: &str, typ: &T) {
-        let old = self.map.insert(id.to_string(), typ.clone());
+    pub fn bind(&mut self, id: &str, val: &T) {
+        let old = self.map.insert(id.to_string(), val.clone());
         let top = self.diffs.last_mut().unwrap();
         top.push((id.to_string(), old));
     }
@@ -39,8 +40,8 @@ impl<T: Clone> Context<T> {
         for (name, bind) in diff {
             match bind {
                 Some(typ) => self.map.insert(name, typ),
-                None => self.map.remove(&name)
+                None => self.map.remove(&name),
             };
-        };
+        }
     }
 }

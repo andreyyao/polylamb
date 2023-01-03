@@ -10,7 +10,6 @@ extern {
     type Location = usize;
     type Error = lex::LexicalError;
     enum lex::Token<'a> {
-        "|"         => lex::Token::Bar,
         "."         => lex::Token::Dot,
         ","         => lex::Token::Comma,
         ":"         => lex::Token::Colon,
@@ -21,7 +20,6 @@ extern {
         "]"         => lex::Token::RBrack,
         "_"         => lex::Token::Underscore,
         "->"        => lex::Token::Arrow,
-        "=>"        => lex::Token::DoubleArrow,
         "*"         => lex::Token::Mul,
         "infix6"    => lex::Token::Infix6(<&'a str>),
         "infix4"    => lex::Token::Infix4(<&'a str>),
@@ -36,8 +34,6 @@ extern {
         "else"      => lex::Token::Else,
         "let"       => lex::Token::Let,
         "in"        => lex::Token::In,
-        "match"     => lex::Token::Match,
-        "with"      => lex::Token::With,
         "end"       => lex::Token::End,
         "any"       => lex::Token::Any,
         "lambda"    => lex::Token::Lambda,
@@ -71,7 +67,7 @@ pub ValExpr: Expr = {
     <e: ValExpr2> => e,
     <e: ValExprIf> => e,
     <e: ValExprLet> => e,
-    <e: ValExprMatch> => e
+    // <e: ValExprMatch> => e
 }
 
 ValExprIf: Expr = {
@@ -87,24 +83,24 @@ ValExprIf: Expr = {
 }
 
 ValExprLet: Expr = {
-    <l: @L> "let" <a: Annot> "=" <e1: ValExpr> "in" <e2: ValExpr> <r: @R> =>
+    <l: @L> "let" <pat: Pattern> "=" <e1: ValExpr> "in" <e2: ValExpr> <r: @R> =>
         Expr {
 	    expr: RawExpr::Let{
-	        annot: a, exp: Box::new(e1), body: Box::new(e2)
+	        pat, exp: Box::new(e1), body: Box::new(e2)
 	    },
 	    span: Some(Span::new(l, r))
 	}
 }
 
-ValExprMatch: Expr = {
-    <l: @L> "match" <e: ValExpr> "with" <c: Pattern> "=>" <b: ValExpr> "end" <r: @R> =>
-        Expr {
-	    expr: RawExpr::Match{
-	        exp: Box::new(e), clause: (c, Box::new(b))
-            },
-	    span: Some(Span::new(l, r))
-	}
-}
+// ValExprMatch: Expr = {
+//   <l: @L> "match" <e: ValExpr> "with" <c: Pattern> "=>" <b: ValExpr> "end" <r: @R> =>
+//        Expr {
+//	    expr: RawExpr::Match{
+//	        exp: Box::new(e), clause: (c, Box::new(b))
+//            },
+//	    span: Some(Span::new(l, r))
+//	}
+// }
 
 
 ///////////// Precedence babyyyy /////////////
@@ -232,16 +228,8 @@ TypExprArrow: Type = {
 }
 
 TypExprProd: Type = {
-    <l: @L> <ts: Sep<TypExprApp, "*">> <r: @R> =>
+    <l: @L> <ts: Sep<TypExprAtom, "*">> <r: @R> =>
         Type { typ: RawType::Prod(ts), span: Some(Span::new(l, r)) },
-}
-
-TypExprApp: Type = {
-    <l: @L> <t1: TypExprAtom> <t2: TypExprAtom> <r: @R> =>
-        Type {
-	    typ: RawType::App(Box::new(t1), Box::new(t2)),
-	    span: Some(Span::new(l, r))
-	}
 }
 
 TypExprAtom: Type = {
@@ -279,19 +267,14 @@ SepMulti<T, S>: Vec<T> = {
 Pattern: ast::Pattern = {
     "(" <multi: SepMulti<Pattern, ",">> ")" =>
         ast::Pattern::Tuple(multi),
-    "(" <a: "eid"> ")" =>
-        ast::Pattern::Var(a.to_string()),
+    <a: Annot> => ast::Pattern::Annot(a.0, a.1),
     "_" => ast::Pattern::Wildcard
 }
 
 
 // Type annotated identifier
-Annot: ast::Annot = {
-    <v1: "eid"> ":" <t: TypExpr> =>
-        ast::Annot{
-	    var: v1.to_string(),
-            typ: t
-        }
+Annot: (String, ast::Type) = {
+    <v1: "eid"> ":" <t: TypExpr> => (v1.to_string(), t)
 }
 
 //////////// END HELPERS /////////////

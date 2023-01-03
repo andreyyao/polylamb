@@ -1,8 +1,12 @@
 /*! The definition for the System F AST structure,
 as well as some utility functions related to it. */
 
-use std::{fmt, ops::{Deref, DerefMut}, fmt::{Display, Debug}, collections::HashMap};
-
+use std::{
+    collections::HashMap,
+    fmt,
+    fmt::{Debug, Display},
+    ops::{Deref, DerefMut},
+};
 
 /// The entire program
 #[derive(Debug, PartialEq, Clone)]
@@ -10,18 +14,16 @@ pub struct Prog {
     /// Declarations
     pub declarations: HashMap<String, Decl>,
     /// Order of declarations
-    pub order: Vec<String>
+    pub order: Vec<String>,
 }
-
 
 /// Top level declarations
 #[derive(Debug, PartialEq, Clone)]
 pub struct Decl {
     pub id: String,
     pub sig: Type,
-    pub body: Expr
+    pub body: Expr,
 }
-
 
 /// System F types without metadata
 #[derive(Debug, PartialEq, Clone)]
@@ -38,10 +40,7 @@ pub enum RawType {
     Arrow(Box<Type>, Box<Type>),
     /// Universal types
     Forall(String, Box<Type>),
-    /// Type application
-    App(Box<Type>, Box<Type>),
 }
-
 
 /// Expressions without metadata
 #[derive(Debug, PartialEq, Clone)]
@@ -50,42 +49,52 @@ pub enum RawExpr {
     Con { val: Constant },
     /// Stringentifiers aka variables
     Var { id: String },
-    /// `let [annot] = [exp] in [body] end`
-    Let { annot: Annot, exp: Box<Expr>, body: Box<Expr> },
+    /// `let [pat] = [exp] in [body] end`
+    Let {
+        pat: Pattern,
+        exp: Box<Expr>,
+        body: Box<Expr>,
+    },
     /// Expression function application
     EApp { exp: Box<Expr>, arg: Box<Expr> },
     /// Type concretization, ex. `f[int]`
     TApp { exp: Box<Expr>, arg: Type },
     /// Tuples, n >= 2
     Tuple { entries: Vec<Expr> },
-    /// Pattern matching
-    Match { exp: Box<Expr>, clause: (Pattern, Box<Expr>) },
     /// Binary operations
-    Binop { lhs: Box<Expr>, op: Binary, rhs: Box<Expr> },
+    Binop {
+        lhs: Box<Expr>,
+        op: Binary,
+        rhs: Box<Expr>,
+    },
     /// Functions that take eid's as arguments, ex. `lambda x: int. x + 1
-    Lambda { args: Vec<Annot>, body: Box<Expr> },
+    Lambda {
+        args: Vec<(String, Type)>,
+        body: Box<Expr>,
+    },
     /// Type abstractions, ex. `any X. (lambda x: X. x)`
     Any { poly: String, body: Box<Expr> },
     /// if [cond] then [t] else [f]
-    If { cond: Box<Expr>, t: Box<Expr>, f: Box<Expr> },
+    If {
+        cond: Box<Expr>,
+        t: Box<Expr>,
+        f: Box<Expr>,
+    },
 }
-
 
 /// The type of types : )
 #[derive(Debug, PartialEq, Clone)]
 pub struct Type {
     pub typ: RawType,
-    pub span: Option<Span>
+    pub span: Option<Span>,
 }
-
 
 /// Expression with extra metadata
 #[derive(Debug, PartialEq, Clone)]
 pub struct Expr {
     pub expr: RawExpr,
-    pub span: Option<Span>
+    pub span: Option<Span>,
 }
-
 
 /// Literals
 #[derive(Debug, PartialEq, Clone)]
@@ -95,39 +104,39 @@ pub enum Constant {
     Boolean(bool),
 }
 
-
 /// Binary operands. No division
 #[derive(Debug, PartialEq, Clone)]
 pub enum Binary {
-    Add, Sub, Mul,
-    Eq, Lt, Gt, Ne,
-    And, Or
+    Add,
+    Sub,
+    Mul,
+    Eq,
+    Lt,
+    Gt,
+    Ne,
+    And,
+    Or,
 }
-
 
 /// Patterns
 #[derive(Debug, PartialEq, Clone)]
 pub enum Pattern {
-    Var(String),
     Wildcard,
-    Tuple(Vec<Pattern>)
+    /// Annotated variables
+    Annot(String, Type),
+    Tuple(Vec<Pattern>),
 }
-
-
-/// Type-annotated variables
-#[derive(Debug, PartialEq, Clone)]
-pub struct Annot { pub var: String, pub typ: Type }
-
 
 /// Start and end positions
 #[derive(Debug, PartialEq, Clone)]
-pub struct Span { start: usize, end: usize }
-
+pub struct Span {
+    start: usize,
+    end: usize,
+}
 
 ////////////////////////////////////////////////////////////////////////
 /////////////////////////// Implementations ////////////////////////////
 ////////////////////////////////////////////////////////////////////////
-
 
 impl Deref for Expr {
     type Target = RawExpr;
@@ -157,13 +166,16 @@ impl DerefMut for Type {
 
 impl Prog {
     pub fn new() -> Prog {
-	Prog { declarations: HashMap::new(), order: vec![] }
+        Prog {
+            declarations: HashMap::new(),
+            order: vec![],
+        }
     }
 }
 
 impl Span {
     pub fn new(start: usize, end: usize) -> Span {
-	Span { start, end }
+        Span { start, end }
     }
 }
 
@@ -177,19 +189,19 @@ impl RawType {
 
 impl RawExpr {
     pub fn is_atomic(&self) -> bool {
-	false
+        false
     }
 }
 
 impl Type {
     pub fn new(typ: RawType) -> Type {
-	Type { typ, span: None }
+        Type { typ, span: None }
     }
 }
 
 impl Expr {
     pub fn new(expr: RawExpr) -> Expr {
-	Expr { expr, span: None }
+        Expr { expr, span: None }
     }
 }
 
@@ -207,22 +219,20 @@ impl Binary {
             "!=" => Ne,
             "&&" => And,
             "||" => Or,
-            _ => panic!(" At the Disco")
+            _ => panic!(" At the Disco"),
         }
     }
 }
 
 impl Display for Type {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-	let typ = &self.typ;
-	write!(f, "{typ}")
+        let typ = &self.typ;
+        write!(f, "{typ}")
     }
 }
 
 impl Display for RawType {
-
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-
         /// Parenths over composite types to disambiguate parsing precedence
         fn fmt_composite(typ: &RawType, ff: &mut fmt::Formatter) -> fmt::Result {
             if typ.is_atomic() {
@@ -238,21 +248,22 @@ impl Display for RawType {
             RawType::Unit => write!(f, "Unit"),
             RawType::Prod(typs) => {
                 for (i, t) in typs.iter().enumerate() {
-                    if i != 0 { write!(f, " * ")?; }
+                    if i != 0 {
+                        write!(f, " * ")?;
+                    }
                     fmt_composite(t, f)?;
                 }
                 write!(f, "")
-            },
+            }
             RawType::Arrow(x, y) => {
                 fmt_composite(x, f)?;
                 write!(f, " -> ")?;
                 fmt_composite(y, f)
-            },
+            }
             RawType::Forall(v, t) => {
                 write!(f, "∀ {v}. {t}")
-            },
+            }
             RawType::TVar(v) => write!(f, "{v}"),
-	    RawType::App(t1, t2) => write!(f, "{t1} {t2}")
         }
     }
 }
@@ -265,9 +276,7 @@ impl Display for Expr {
 }
 
 impl Display for RawExpr {
-
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-
         /// Parenths over composite expressions to disambiguate
         fn fmt_composite(exp: &Expr, ff: &mut fmt::Formatter) -> fmt::Result {
             if exp.is_atomic() {
@@ -278,39 +287,43 @@ impl Display for RawExpr {
         }
 
         match self {
-            RawExpr::Con{ val } => write!(f, "{val}"),
-            RawExpr::Var{ id } => write!(f, "{id}"),
-            RawExpr::Let{ annot, exp, body } => write!(f, "{annot} = {exp} in {body}"),
+            RawExpr::Con { val } => write!(f, "{val}"),
+            RawExpr::Var { id } => write!(f, "{id}"),
+            RawExpr::Let { pat, exp, body } => write!(f, "{pat} = {exp} in {body}"),
             RawExpr::EApp { exp, arg } => write!(f, "{exp} {arg}"),
             RawExpr::TApp { exp, arg } => write!(f, "{exp}[{arg}]"),
             RawExpr::Tuple { entries } => {
                 write!(f, "(")?;
                 for (i, t) in entries.iter().enumerate() {
-                    if i != 0 { write!(f, ", ")?; }
+                    if i != 0 {
+                        write!(f, ", ")?;
+                    }
                     fmt_composite(t, f)?;
                 }
                 write!(f, ")")
-            },
-	    RawExpr::Match { exp: _, clause: _ } => {
-		panic!("TODO")
-	    },
+            }
+            // RawExpr::Match { exp: _, clause: _ } => {
+            // 	panic!("TODO")
+            // },
             RawExpr::Binop { lhs, op, rhs } => {
-		write!(f, "({lhs}) {op} ({rhs})")
-	    },
-	    RawExpr::Lambda { args, body } => {
-		write!(f, "λ ")?;
-		for (i, a) in args.iter().enumerate() {
-                    if i != 0 { write!(f, ", ")?; }
-                    write!(f, "{a}")?;
+                write!(f, "({lhs}) {op} ({rhs})")
+            }
+            RawExpr::Lambda { args, body } => {
+                write!(f, "λ ")?;
+                for (i, (v, t)) in args.iter().enumerate() {
+                    if i != 0 {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, "{v}: {t}")?;
                 }
                 write!(f, ". {body}")
-	    },
-	    RawExpr::Any { poly, body } => {
-		write!(f, "Λ {poly}. {body}")
-	    },
-	    RawExpr::If { cond, t: tt, f: ff } => {
-		write!(f, "if {cond} then {tt} else {ff}")
-	    }
+            }
+            RawExpr::Any { poly, body } => {
+                write!(f, "Λ {poly}. {body}")
+            }
+            RawExpr::If { cond, t: tt, f: ff } => {
+                write!(f, "if {cond} then {tt} else {ff}")
+            }
         }
     }
 }
@@ -319,41 +332,54 @@ impl Display for Constant {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Constant::Integer(i) => {
-                if i < &0 {
+                if i == &i64::MIN {
+                    write!(f, "~9223372036854775808")
+                } else if i < &0 {
                     let i1 = -i;
                     write!(f, "~{i1}")
                 } else {
                     write!(f, "{i}")
                 }
-            },
+            }
             Constant::Boolean(b) => write!(f, "{b}"),
-            Constant::Null => write!(f, "null")
+            Constant::Null => write!(f, "null"),
         }
     }
 }
 
 impl Display for Binary {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-	use Binary::*;
-	let symbol = match self {
-	    Add => "+",
-	    Sub => "-",
-	    Mul => "*",
-	    Eq => "==",
-	    Ne => "!=",
-	    Lt => "<",
-	    Gt => ">",
-	    And => "&&",
-	    Or => "||"
-	};
-	write!(f, "{symbol}")
+        use Binary::*;
+        let symbol = match self {
+            Add => "+",
+            Sub => "-",
+            Mul => "*",
+            Eq => "==",
+            Ne => "!=",
+            Lt => "<",
+            Gt => ">",
+            And => "&&",
+            Or => "||",
+        };
+        write!(f, "{symbol}")
     }
 }
 
-impl Display for Annot {
+impl Display for Pattern {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let r = &self.var;
-        let t = &self.typ;
-        write!(f, "{r}: {t}")
+        match self {
+            Pattern::Tuple(patterns) => {
+                write!(f, "(")?;
+                for (i, p) in patterns.iter().enumerate() {
+                    if i != 0 {
+                        write!(f, ", ")?
+                    }
+                    write!(f, "{p}")?
+                }
+                write!(f, ")")
+            }
+            Pattern::Annot(v, t) => write!(f, "{v} : {t}"),
+            Pattern::Wildcard => write!(f, "_"),
+        }
     }
 }
