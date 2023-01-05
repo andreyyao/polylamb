@@ -1,10 +1,10 @@
-use compiler::system_f::ast::RawExpr;
-use compiler::system_f::parse::{parse_decl, parse_val_expr};
+use compiler::system_f::ast::{RawExpr, RawType};
+use compiler::system_f::parse::{parse_decl, parse_typ_expr, parse_val_expr};
 
 const LITERALS: [&str; 8] = ["1", "~123", "true", "false", "null", "1048576", "0", "~0"];
 
 // There are no types in the AST until type checking
-const BINOPS: [&str; 8] = [
+const BINOPS: [&str; 10] = [
     "a + a",
     "a * true",
     "111 - ~100",
@@ -13,6 +13,8 @@ const BINOPS: [&str; 8] = [
     "a + b && c * d || e - f",
     "true + 1023",
     "null && (if true then false else null)",
+    "1 + (lambda x: Int. x) 2",
+    "true * (lambda x: A. y)",
 ];
 
 const IFS: [&str; 6] = [
@@ -30,6 +32,29 @@ const DECLS: [&str; 3] = [
     "let xx: Bool = y",
 ];
 
+const TYPE_VARS: [&str; 10] = [
+    "A",
+    "B",
+    "Z",
+    "B1719364_76432",
+    "YMCA",
+    "CS6120",
+    "CS6110",
+    "WHAT_DOES_THE_FOX_SAY",
+    "Hahahaha",
+    "Never_gonna_give_you_up",
+];
+
+fn raw_expr_of(input: &str) -> RawExpr {
+    let parse_result = parse_val_expr(input);
+    parse_result.unwrap().expr
+}
+
+fn raw_type_of(input: &str) -> RawType {
+    let parse_result = parse_typ_expr(input);
+    parse_result.unwrap().typ
+}
+
 #[macro_export]
 macro_rules! assert_matches {
     ( $x:expr, $y:pat ) => {
@@ -37,26 +62,36 @@ macro_rules! assert_matches {
     };
 }
 
-fn raw_expr_of(input: &str) -> RawExpr {
-    let parse_result = parse_val_expr(input);
-    parse_result.unwrap().expr
-}
-
 #[test]
 fn check_exprs() {
     for s in LITERALS {
-        assert_matches!(raw_expr_of(s), RawExpr::Con { .. })
+        let exp = raw_expr_of(s);
+        println!("{}", exp);
+        assert_matches!(exp, RawExpr::Con { .. })
     }
     for s in BINOPS {
-        assert_matches!(raw_expr_of(s), RawExpr::Binop { .. })
+        let exp = raw_expr_of(s);
+        println!("{}", exp);
+        assert_matches!(exp, RawExpr::Binop { .. })
     }
     for s in IFS {
-        assert_matches!(raw_expr_of(s), RawExpr::If { .. })
+        let exp = raw_expr_of(s);
+        println!("{}", exp);
+        assert_matches!(exp, RawExpr::If { .. })
     }
 }
 
 #[test]
-fn check_decl() {
+fn check_types() {
+    for t in TYPE_VARS {
+        let typ = raw_type_of(t);
+        println!("{}", typ);
+        assert_matches!(typ, RawType::TVar(..))
+    }
+}
+
+#[test]
+fn check_decls() {
     for s in DECLS {
         assert_matches!(parse_decl(s), Result::Ok(..))
     }

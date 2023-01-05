@@ -105,7 +105,7 @@ ValExprLet: Expr = {
 
 ///////////// Precedence babyyyy /////////////
 
-// Lambda and forall. Expression body extends as far as possible
+// Lambda and any. Expression body extends as far as possible
 ValExpr2: Expr = {
     <l: @L> "lambda" <a: Sep<Annot, ",">> "." <e: ValExpr> <r: @R> =>
         Expr {
@@ -228,8 +228,9 @@ TypExprArrow: Type = {
 }
 
 TypExprProd: Type = {
-    <l: @L> <ts: Sep<TypExprAtom, "*">> <r: @R> =>
+    <l: @L> <ts: SepMulti<TypExprAtom, "*">> <r: @R> =>
         Type { typ: RawType::Prod(ts), span: Some(Span::new(l, r)) },
+    <t: TypExprAtom> => t
 }
 
 TypExprAtom: Type = {

@@ -42,7 +42,7 @@ const EXP_IDENTS: [&str; 21] = [
     "h1h3oi4bh54o",
 ];
 
-const TYP_IDENTS: [&str; 12] = [
+const TYPE_IDENTS: [&str; 12] = [
     "Float",
     "A__ababa",
     "Object",
@@ -87,7 +87,7 @@ fn idents() {
     for input in EXP_IDENTS {
         check_one(input, Token::ExpId(input));
     }
-    for input in TYP_IDENTS {
+    for input in TYPE_IDENTS {
         check_one(input, Token::TypId(input));
     }
 }
