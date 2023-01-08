@@ -1,5 +1,5 @@
 use compiler::system_f::ast::{RawExpr, RawType};
-use compiler::system_f::parse::{parse_decl, parse_typ_expr, parse_val_expr};
+use compiler::system_f::parse::{parse_decl, parse_expr, parse_type};
 
 const LITERALS: [&str; 8] = ["1", "~123", "true", "false", "null", "1048576", "0", "~0"];
 
@@ -46,12 +46,12 @@ const TYPE_VARS: [&str; 10] = [
 ];
 
 fn raw_expr_of(input: &str) -> RawExpr {
-    let parse_result = parse_val_expr(input);
+    let parse_result = parse_expr(input);
     parse_result.unwrap().expr
 }
 
 fn raw_type_of(input: &str) -> RawType {
-    let parse_result = parse_typ_expr(input);
+    let parse_result = parse_type(input);
     parse_result.unwrap().typ
 }
 

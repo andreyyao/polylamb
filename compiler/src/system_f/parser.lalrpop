@@ -75,10 +75,10 @@ ValExprIf: Expr = {
         Expr {
             expr: RawExpr::If{
                 cond: Box::new(e1),
-                t: Box::new(e2),
-                f: Box::new(e3)
+                branch_t: Box::new(e2),
+                branch_f: Box::new(e3)
             },
-	    span: Some(Span::new(l, r))
+	    span: Some((l, r))
         }
 }
 
@@ -88,7 +88,7 @@ ValExprLet: Expr = {
 	    expr: RawExpr::Let{
 	        pat, exp: Box::new(e1), body: Box::new(e2)
 	    },
-	    span: Some(Span::new(l, r))
+	    span: Some((l, r))
 	}
 }
 
@@ -98,7 +98,7 @@ ValExprLet: Expr = {
 //	    expr: RawExpr::Match{
 //	        exp: Box::new(e), clause: (c, Box::new(b))
 //            },
-//	    span: Some(Span::new(l, r))
+//	    span: Some((l, r))
 //	}
 // }
 
@@ -110,12 +110,12 @@ ValExpr2: Expr = {
     <l: @L> "lambda" <a: Sep<Annot, ",">> "." <e: ValExpr> <r: @R> =>
         Expr {
 	    expr: RawExpr::Lambda{ args: a, body: Box::new(e) },
-	    span: Some(Span::new(l, r))
+	    span: Some((l, r))
 	},
     <l: @L> "any" <a: TypVar> "." <e: ValExpr> <r: @R> =>
         Expr {
 	    expr: RawExpr::Any{ poly: a, body: Box::new(e) },
-	    span: Some(Span::new(l, r))
+	    span: Some((l, r))
 	},
     <e: ValExpr3> => e
 }
@@ -125,7 +125,7 @@ ValExpr3: Expr = {
     <l: @L> <e1: ValExpr3> <o: "infix3"> <e2:ValExpr4> <r: @R> =>
         Expr {
             expr: utils::make_binop(e1, o, e2),
-	    span: Some(Span::new(l, r))
+	    span: Some((l, r))
 	},
     <e: ValExpr4> => e
 }
@@ -135,7 +135,7 @@ ValExpr4: Expr = {
     <l: @L> <e1: ValExpr4> <o: "infix4"> <e2: ValExpr6> <r: @R> =>
         Expr {
             expr: utils::make_binop(e1, o, e2),
-	    span: Some(Span::new(l, r))
+	    span: Some((l, r))
 	},
     <e: ValExpr6> => e
 }
@@ -145,7 +145,7 @@ ValExpr6: Expr = {
     <l: @L> <e1: ValExpr6> <o: "infix6"> <e2: ValExpr7> <r: @R> =>
         Expr {
             expr: utils::make_binop(e1, o, e2),
-	    span: Some(Span::new(l, r))
+	    span: Some((l, r))
 	},
     <e: ValExpr7> => e
 }
@@ -155,7 +155,7 @@ ValExpr7: Expr = {
     <l: @L> <e1: ValExpr7> "*" <e2: ValExpr8> <r: @R> =>
         Expr {
             expr: utils::make_binop(e1, "*", e2),
-	    span: Some(Span::new(l, r))
+	    span: Some((l, r))
 	},
     <e: ValExpr8> => e
 }
@@ -166,13 +166,13 @@ ValExpr8: Expr = {
     <l: @L> <e1: ValExpr8> <e2: ValExprAtom> <r: @R> =>
         Expr {
             expr: RawExpr::EApp{ exp: Box::new(e1), arg: Box::new(e2) },
-	    span: Some(Span::new(l, r))
+	    span: Some((l, r))
 	},
     // Type application
     <l: @L> <e: ValExpr8> "[" <t: TypExpr> "]" <r: @R> =>
         Expr {
             expr: RawExpr::TApp{ exp: Box::new(e), arg: t },
-	    span: Some(Span::new(l, r))
+	    span: Some((l, r))
 	},
     <e: ValExprAtom> => e
 }
@@ -182,27 +182,27 @@ ValExprAtom: Expr = {
     <l: @L> <z: "intLit"> <r: @R> =>
         Expr {
 	    expr: RawExpr::Con{ val: ast::Constant::Integer(z) },
-	    span: Some(Span::new(l, r))
+	    span: Some((l, r))
 	},
     <l: @L> <b: "boolLit"> <r: @R> =>
         Expr {
 	    expr: RawExpr::Con{ val: ast::Constant::Boolean(b) },
-	    span: Some(Span::new(l, r))
+	    span: Some((l, r))
 	},
     <l: @L> "unitLit" <r: @R> =>
         Expr {
 	    expr: RawExpr::Con{ val: ast::Constant::Null },
-	    span: Some(Span::new(l, r))
+	    span: Some((l, r))
 	},
     <l: @L> <v: "eid"> <r: @R> =>
         Expr {
 	    expr: RawExpr::Var{ id: v.to_string() },
-	    span: Some(Span::new(l, r))
+	    span: Some((l, r))
 	},
     <l: @L> "(" <es: SepMulti<ValExpr, ",">> ")" <r: @R> =>
         Expr {
 	    expr: RawExpr::Tuple{ entries: es },
-	    span: Some(Span::new(l, r))
+	    span: Some((l, r))
 	},
     "(" <e: ValExpr> ")" => e,
 }
@@ -217,31 +217,31 @@ pub TypExpr: Type = {
 
 TypExprForall: Type = {
     <l: @L> "forall" <tv: "tid"> "." <te: TypExpr> <r: @R> =>
-	Type { typ: RawType::Forall(tv.to_string(), Box::new(te)), span: Some(Span::new(l, r)) },
+	Type { typ: RawType::Forall(tv.to_string(), Box::new(te)), span: Some((l, r)) },
     <t: TypExprArrow> => t
 }
 
 TypExprArrow: Type = {
     <l: @L> <t1: TypExprProd> "->" <t2: TypExprArrow> <r: @R> =>
-        Type { typ: RawType::Arrow(Box::new(t1), Box::new(t2)), span: Some(Span::new(l, r)) },
+        Type { typ: RawType::Arrow(Box::new(t1), Box::new(t2)), span: Some((l, r)) },
     <t: TypExprProd> => t
 }
 
 TypExprProd: Type = {
     <l: @L> <ts: SepMulti<TypExprAtom, "*">> <r: @R> =>
-        Type { typ: RawType::Prod(ts), span: Some(Span::new(l, r)) },
+        Type { typ: RawType::Prod(ts), span: Some((l, r)) },
     <t: TypExprAtom> => t
 }
 
 TypExprAtom: Type = {
     <l: @L> "Int" <r: @R> =>
-        Type { typ: RawType::Int, span: Some(Span::new(l, r)) },
+        Type { typ: RawType::Int, span: Some((l, r)) },
     <l: @L> "Bool" <r: @R> =>
-        Type { typ: RawType::Bool, span: Some(Span::new(l, r)) },
+        Type { typ: RawType::Bool, span: Some((l, r)) },
     <l: @L> "Unit" <r: @R> =>
-        Type { typ: RawType::Unit, span: Some(Span::new(l, r)) },
+        Type { typ: RawType::Unit, span: Some((l, r)) },
     <l: @L> <v: TypVar> <r: @R> =>
-        Type { typ: RawType::TVar(v), span: Some(Span::new(l, r)) },
+        Type { typ: RawType::TVar(v), span: Some((l, r)) },
     "(" <t: TypExpr> ")" => t
 }
 

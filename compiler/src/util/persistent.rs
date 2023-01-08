@@ -1,13 +1,13 @@
 /// General purpose persistent structure with levels
-pub struct Persistent<T: Clone> {
+pub struct Persist<T: Clone> {
     /// snapshots
     versions: Vec<T>,
 }
 
-impl<T: Clone> Persistent<T> {
+impl<T: Clone> Persist<T> {
     /// Empty context
-    pub fn new(content: T) -> Persistent<T> {
-        Persistent {
+    pub fn new(content: T) -> Persist<T> {
+        Persist {
             versions: vec![content],
         }
     }
@@ -27,3 +27,14 @@ impl<T: Clone> Persistent<T> {
         self.versions.pop();
     }
 }
+
+/// Adventures into next level
+macro_rules! adventure {
+    ($v: ident, $e:expr, $ctxt_name: ident) => {
+        $ctxt_name.enter();
+        let $v = $e;
+        $ctxt_name.exeunt()
+    };
+}
+
+pub(crate) use adventure;

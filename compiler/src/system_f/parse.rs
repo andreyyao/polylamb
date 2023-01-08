@@ -1,8 +1,5 @@
 lalrpop_mod!(pub parser, "/system_f/parser.rs"); // synthesized by LALRPOP
-use super::{
-    ast,
-    lex::{LexerWrap, Token},
-};
+use super::{ast, error::ParseError, lex::LexerWrap};
 
 pub mod utils {
     use crate::system_f::ast::*;
@@ -16,16 +13,14 @@ pub mod utils {
     }
 }
 
-type ParseError<'a> = lalrpop_util::ParseError<usize, Token<'a>, usize>;
-
 /// Parses a value expression
-pub fn parse_val_expr(input: &str) -> Result<ast::Expr, ParseError> {
+pub fn parse_expr(input: &str) -> Result<ast::Expr, ParseError> {
     let lexer = LexerWrap::new(input);
     parser::ValExprParser::new().parse(lexer)
 }
 
 /// Parses a type expression
-pub fn parse_typ_expr(input: &str) -> Result<ast::Type, ParseError> {
+pub fn parse_type(input: &str) -> Result<ast::Type, ParseError> {
     let lexer = LexerWrap::new(input);
     parser::TypExprParser::new().parse(lexer)
 }

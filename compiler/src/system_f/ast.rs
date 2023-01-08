@@ -57,7 +57,7 @@ pub enum RawExpr {
     },
     /// Expression function application
     EApp { exp: Box<Expr>, arg: Box<Expr> },
-    /// Type concretization, ex. `f[int]`
+    /// Type specialization, ex. `f[int]`
     TApp { exp: Box<Expr>, arg: Type },
     /// Tuples, n >= 2
     Tuple { entries: Vec<Expr> },
@@ -77,8 +77,8 @@ pub enum RawExpr {
     /// if [cond] then [t] else [f]
     If {
         cond: Box<Expr>,
-        t: Box<Expr>,
-        f: Box<Expr>,
+        branch_t: Box<Expr>,
+        branch_f: Box<Expr>,
     },
 }
 
@@ -128,11 +128,7 @@ pub enum Pattern {
 }
 
 /// Start and end positions
-#[derive(Debug, PartialEq, Clone)]
-pub struct Span {
-    start: usize,
-    end: usize,
-}
+pub type Span = (usize, usize);
 
 ////////////////////////////////////////////////////////////////////////
 /////////////////////////// Implementations ////////////////////////////
@@ -170,12 +166,6 @@ impl Prog {
             declarations: HashMap::new(),
             order: vec![],
         }
-    }
-}
-
-impl Span {
-    pub fn new(start: usize, end: usize) -> Span {
-        Span { start, end }
     }
 }
 
@@ -321,8 +311,12 @@ impl Display for RawExpr {
             RawExpr::Any { poly, body } => {
                 write!(f, "Λ {poly}. {body}")
             }
-            RawExpr::If { cond, t: tt, f: ff } => {
-                write!(f, "if {cond} then {tt} else {ff}")
+            RawExpr::If {
+                cond,
+                branch_t,
+                branch_f,
+            } => {
+                write!(f, "if {cond} then {branch_t} else {branch_f}")
             }
         }
     }
