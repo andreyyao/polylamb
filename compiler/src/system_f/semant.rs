@@ -1,29 +1,39 @@
 /*! Type checking for the System F AST. */
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
-use crate::system_f::ast::{Binary, Constant, Decl, Expr, Pattern, Prog, RawExpr, RawType, Type};
+use crate::system_f::ast::{
+    Binary, Constant, Decl, Expr, Ident, Pattern, Prog, RawExpr, RawPattern, RawType, Span, Type,
+};
 use crate::system_f::error::TypeError;
 use crate::util::persistent::{adventure, Persist};
 use annotate_snippets::snippet::{AnnotationType, SourceAnnotation};
 
+/** Mapping of variable names to list of (type, binding site). Latest element is most recent */
+pub type Context<'a> = Persist<HashMap<&'a String, (RawType, Span)>>;
+
 /** Type-checks the expression `expr`. `ctxt` is a map from expression variables to types.
- * Returns: The raw type of the checked `expr` */
+Returns: The raw type of the checked `expr`, or `TypeError`
+# Arguments
+ * `expr`: The expression to check
+ * `val_ctxt`: Persistent mapping from variable names to (raw type, location of binding).
+ Invariance: each value in map, if exists, has length at least 1
+ * `typ_vars`: Set of declared type variables */
 pub fn check<'a>(
     expr: &'a Expr,
-    val_ctxt: &mut Persist<HashMap<&'a String, RawType>>,
+    val_ctxt: &mut Context<'a>,
+    typ_vars: &mut Persist<HashSet<&'a String>>,
 ) -> Result<RawType, TypeError> {
     use RawExpr::*;
     use RawType::*;
-    let raw_exp = &expr.expr;
-    match raw_exp {
+    match &expr.expr {
         Con { val } => match val {
             Constant::Integer(_) => Ok(Int),
             Constant::Boolean(_) => Ok(Bool),
             Constant::Null => Ok(Unit),
         },
         Var { id } => match val_ctxt.current().get(id) {
-            Some(typ) => Ok(typ.clone()),
+            Some((typ, _)) => Ok(typ.clone()),
             None => Err(TypeError {
                 title: "Unbound variable",
                 annot_type: AnnotationType::Error,
@@ -35,11 +45,28 @@ pub fn check<'a>(
             }),
         },
         Let { pat, exp, body } => {
-            panic!("TODO")
+	    let exp_typ = check(exp, val_ctxt, typ_vars)?;
+	    let mut var_map: HashMap<&'a String, Span> = HashMap::new();
+	    let pat_typ = traverse_pat(pat, &mut var_map, val_ctxt)?;
+	    if alpha_equiv(&exp_typ, &pat_typ) {
+		check(body, val_ctxt, typ_vars)
+	    } else {
+		println!("{}", pat_typ);
+		println!("{}", exp_typ);
+		Err(TypeError {
+                    title: "Mismatched types in pattern",
+                    annot_type: AnnotationType::Error,
+                    annotations: vec![SourceAnnotation {
+			range: pat.span.unwrap(),
+			label: "this pattern has wrong type",
+			annotation_type: AnnotationType::Error,
+                    }],
+		})
+	    }
         }
         EApp { exp, arg } => {
-            let exp_t = check(&exp, val_ctxt)?;
-            let arg_t = check(&arg, val_ctxt)?;
+            let exp_t = check(&exp, val_ctxt, typ_vars)?;
+            let arg_t = check(&arg, val_ctxt, typ_vars)?;
             match exp_t {
                 RawType::Arrow(t1, t2) => {
                     if alpha_equiv(&t1.typ, &arg_t) {
@@ -68,11 +95,11 @@ pub fn check<'a>(
             }
         }
         TApp { exp, arg } => {
-            let exp_t = check(exp, val_ctxt)?;
+            let exp_t = check(exp, val_ctxt, typ_vars)?;
             match exp_t {
                 RawType::Forall(tvar, typ) => {
                     let mut t = typ.typ.clone();
-                    substitute(&tvar, &arg, &mut t);
+                    substitute(&tvar.name, &arg, &mut t);
                     Ok(t)
                 }
                 _ => Err(TypeError {
@@ -89,7 +116,7 @@ pub fn check<'a>(
         Tuple { entries } => {
             let mut typs = vec![];
             for e in entries {
-                adventure!(typ, Type::new(check(e, val_ctxt)?), val_ctxt);
+                adventure!(typ, Type::new(check(e, val_ctxt, typ_vars)?), val_ctxt);
                 typs.push(typ)
             }
             Ok(RawType::Prod(typs))
@@ -108,8 +135,8 @@ pub fn check<'a>(
                     }],
                 }
             }
-            adventure!(type_l, check(lhs, val_ctxt)?, val_ctxt);
-            adventure!(type_r, check(rhs, val_ctxt)?, val_ctxt);
+            adventure!(type_l, check(lhs, val_ctxt, typ_vars)?, val_ctxt);
+            adventure!(type_r, check(rhs, val_ctxt, typ_vars)?, val_ctxt);
             match op {
                 Add | Sub | Mul | Eq | Ne | Gt | Lt => {
                     let err_msg = "expected to have type `Int`";
@@ -133,20 +160,40 @@ pub fn check<'a>(
             }
         }
         Lambda { args, body } => {
-            panic!("TODO")
+            // Current variable names
+            let mut var_map: HashMap<&String, Span> = HashMap::new();
+            let typs = args
+                .iter()
+                .map(|p| traverse_pat(p, &mut var_map, val_ctxt))
+                .collect::<Result<Vec<RawType>, TypeError>>()?;
+            let base_typ = check(body, val_ctxt, typ_vars)?;
+            let typ = typs.iter().rev().fold(base_typ, |acc, ele| {
+                Arrow(
+                    Box::new(Type::new(ele.clone())),
+                    Box::new(Type::new(acc.clone())),
+                )
+            });
+            // Fold to get nested arrow types
+            Ok(typ)
         }
-        Any { body, .. } => {
-            panic!("TODO")
+        Any { poly, body } => {
+            typ_vars.current().insert(&poly.name);
+            let typ = check(body, val_ctxt, typ_vars)?;
+            let poly_copy = Ident {
+                name: poly.name.clone(),
+                span: None,
+            };
+            Ok(Forall(poly_copy, Box::new(Type::new(typ))))
         }
         If {
             cond,
             branch_t,
             branch_f,
         } => {
-            let cond_typ = check(cond, val_ctxt)?;
-            let t_typ = check(branch_t, val_ctxt)?;
-            let f_typ = check(branch_f, val_ctxt)?;
-            match cond_typ {
+            adventure!(c_typ, check(cond, val_ctxt, typ_vars)?, val_ctxt);
+            adventure!(t_typ, check(branch_t, val_ctxt, typ_vars)?, val_ctxt);
+            adventure!(f_typ, check(branch_f, val_ctxt, typ_vars)?, val_ctxt);
+            match c_typ {
                 Bool => {
                     if alpha_equiv(&t_typ, &f_typ) {
                         Ok(t_typ)
@@ -156,7 +203,8 @@ pub fn check<'a>(
                             annot_type: AnnotationType::Error,
                             annotations: vec![SourceAnnotation {
                                 range: branch_f.span.unwrap(),
-                                label: "this branch has different type from that of the true-branch",
+                                label:
+                                    "this branch has different type from that of the true-branch",
                                 annotation_type: AnnotationType::Error,
                             }],
                         })
@@ -184,7 +232,8 @@ pub fn check<'a>(
 // Check closed expression
 pub fn check_closed_expr(expr: &Expr) -> Result<RawType, TypeError> {
     let mut ctxt = Persist::new(HashMap::new());
-    check(expr, &mut ctxt)
+    let mut tvars = Persist::new(HashSet::new());
+    check(expr, &mut ctxt, &mut tvars)
 }
 
 pub fn check_decl(decl: Decl) {}
@@ -209,7 +258,7 @@ fn substitute(tvar: &String, target: &RawType, typ: &mut RawType) {
             substitute(tvar, target, v);
             substitute(tvar, target, t);
         }
-        Forall(v, t) if v == tvar => substitute(tvar, target, t),
+        Forall(v, t) if &v.name == tvar => substitute(tvar, target, t),
         _ => {}
     }
 }
@@ -262,8 +311,8 @@ pub fn alpha_equiv(typ1: &RawType, typ2: &RawType) -> bool {
             }
             (Forall(tv1, b1), Forall(tv2, b2)) => {
                 let context = ctxt.current();
-                context.de_brujin_1.insert(tv1, context.current_1);
-                context.de_brujin_2.insert(tv2, context.current_2);
+                context.de_brujin_1.insert(&tv1.name, context.current_1);
+                context.de_brujin_2.insert(&tv2.name, context.current_2);
                 context.current_1 += 1;
                 context.current_2 += 1;
                 alpha_equiv_help(b1, b2, ctxt)
@@ -273,4 +322,54 @@ pub fn alpha_equiv(typ1: &RawType, typ2: &RawType) -> bool {
     }
     let env = Env::default();
     alpha_equiv_help(typ1, typ2, &mut Persist::new(env))
+}
+
+/** Returns `Ok(t)`, where `t` is type for `pat`, when no duplicates,
+or `Err(te)` where te is the type error, when yes duplicates.
+Adds binding to `ctxt` along the way
+# Arguments
+ * `pat`: The pattern to check
+ * `var_map`: Mapping from bindings to their spans in source code
+ * `ctxt`: The typing Context */
+fn traverse_pat<'a>(
+    pat: &'a Pattern,
+    var_map: &mut HashMap<&'a String, Span>,
+    ctxt: &mut Context<'a>,
+) -> Result<RawType, TypeError> {
+    match &pat.pat {
+        RawPattern::Binding(ident, typ) => {
+            ctxt.current()
+                .insert(&ident.name, (typ.typ.clone(), ident.span.unwrap().clone()));
+            let hehe = var_map.insert(&ident.name, pat.span.unwrap());
+            match hehe {
+                Some(span_original) => Err(TypeError {
+                    title: "Conflicting argument names",
+                    annot_type: AnnotationType::Error,
+                    annotations: vec![
+                        SourceAnnotation {
+                            range: pat.span.unwrap(),
+                            label: "variable bound multiple times in lambda",
+                            annotation_type: AnnotationType::Error,
+                        },
+                        SourceAnnotation {
+                            range: span_original,
+                            label: "it was already defined here",
+                            annotation_type: AnnotationType::Info,
+                        },
+                    ],
+                }),
+                None => Ok(typ.typ.clone()),
+            }
+        }
+        RawPattern::Tuple(pats) => {
+            let typs = pats
+                .iter()
+                .map(|p| traverse_pat(p, var_map, ctxt))
+                .collect::<Result<Vec<RawType>, TypeError>>()?;
+            Ok(RawType::Prod(
+                typs.iter().map(|t| Type::new(t.clone())).collect(),
+            ))
+        }
+        RawPattern::Wildcard(typ) => Ok(typ.typ.clone()),
+    }
 }

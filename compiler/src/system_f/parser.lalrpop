@@ -1,6 +1,5 @@
 use crate::system_f::{ast, lex, parse::utils};
-use crate::system_f::ast::Span;
-use ast::{Prog, Decl, Expr, RawExpr, Type, RawType};
+use ast::{Prog, Decl, Expr, RawExpr, Type, RawType, Pattern, RawPattern, Ident};
 
 
 grammar<'a>;
@@ -46,17 +45,18 @@ extern {
 
 pub Prog: Prog = {
     <ds: Decl+> => {
-        let mut m = Prog::new();
+        let mut prog = Prog::new();
         for d in ds {
-            m.declarations.insert(d.id.to_string(), d);
+            prog.order.push(d.id.to_owned());
+            prog.declarations.insert(d.id.to_owned(), d);
         }
-        m
+        prog
     }
 }
 
 pub Decl: ast::Decl = {
     "let" <v: "eid"> ":" <t: TypExpr> "=" <e: ValExpr> =>
-        Decl{ id: v.to_string(), sig: t, body: e }
+        Decl{ id: v.to_owned(), sig: t, body: e }
 }
 
 //////////////////////////////////////////////////
@@ -107,12 +107,12 @@ ValExprLet: Expr = {
 
 // Lambda and any. Expression body extends as far as possible
 ValExpr2: Expr = {
-    <l: @L> "lambda" <a: Sep<Annot, ",">> "." <e: ValExpr> <r: @R> =>
+    <l: @L> "lambda" <a: Pattern+> "." <e: ValExpr> <r: @R> =>
         Expr {
 	    expr: RawExpr::Lambda{ args: a, body: Box::new(e) },
 	    span: Some((l, r))
 	},
-    <l: @L> "any" <a: TypVar> "." <e: ValExpr> <r: @R> =>
+    <l: @L> "any" <a: TIdent> "." <e: ValExpr> <r: @R> =>
         Expr {
 	    expr: RawExpr::Any{ poly: a, body: Box::new(e) },
 	    span: Some((l, r))
@@ -196,15 +196,15 @@ ValExprAtom: Expr = {
 	},
     <l: @L> <v: "eid"> <r: @R> =>
         Expr {
-	    expr: RawExpr::Var{ id: v.to_string() },
+	    expr: RawExpr::Var{ id: v.to_owned() },
 	    span: Some((l, r))
 	},
-    <l: @L> "(" <es: SepMulti<ValExpr, ",">> ")" <r: @R> =>
+    <l: @L> <es: Paren<SepMulti<ValExpr, ",">>> <r: @R> =>
         Expr {
 	    expr: RawExpr::Tuple{ entries: es },
 	    span: Some((l, r))
 	},
-    "(" <e: ValExpr> ")" => e,
+    <e: Paren<ValExpr>> => e,
 }
 
 //////////////////////////////////////////////////
@@ -216,8 +216,8 @@ pub TypExpr: Type = {
 }
 
 TypExprForall: Type = {
-    <l: @L> "forall" <tv: "tid"> "." <te: TypExpr> <r: @R> =>
-	Type { typ: RawType::Forall(tv.to_string(), Box::new(te)), span: Some((l, r)) },
+    <l: @L> "forall" <ti: TIdent> "." <te: TypExpr> <r: @R> =>
+	Type { typ: RawType::Forall(ti, Box::new(te)), span: Some((l, r)) },
     <t: TypExprArrow> => t
 }
 
@@ -240,15 +240,47 @@ TypExprAtom: Type = {
         Type { typ: RawType::Bool, span: Some((l, r)) },
     <l: @L> "Unit" <r: @R> =>
         Type { typ: RawType::Unit, span: Some((l, r)) },
-    <l: @L> <v: TypVar> <r: @R> =>
-        Type { typ: RawType::TVar(v), span: Some((l, r)) },
-    "(" <t: TypExpr> ")" => t
+    <l: @L> <t: "tid"> <r: @R> =>
+        Type { typ: RawType::TVar(t.to_owned()), span: Some((l, r)) },
+    <t: Paren<TypExpr>> => t
 }
 
-TypVar: String = {
-    <t: "tid"> => t.to_owned()
+// Pattern
+Pattern: ast::Pattern = {
+    <p: Paren<PatternAtomic>> => p,
+    <p: PatternCompound> => p
 }
 
+// Yep
+PatternEither: ast::Pattern = {
+    <p: PatternAtomic> => p,
+    <p: PatternCompound> => p
+}
+
+// Patterns without parentheses outside
+PatternAtomic: ast::Pattern = {
+    <l: @L> "_" ":" <t: TypExpr> <r: @R> =>
+        Pattern { pat: RawPattern::Wildcard(t), span: Some((l, r)) },
+    <l: @L> <v: EIdent> ":" <t: TypExpr> <r: @R> =>
+        Pattern { pat: RawPattern::Binding(v, t), span: Some((l, r)) }
+}
+
+// Patterns with parentheses outside
+PatternCompound: ast::Pattern = {
+    <l: @L> <tup: Paren<SepMulti<PatternEither, ",">>> <r: @R> =>
+        Pattern { pat: RawPattern::Tuple(tup), span: Some((l, r)) }
+}
+
+// Identifier
+EIdent: Ident = {
+    <l: @L> <v: "eid"> <r: @R> =>
+        Ident { name: v.to_owned(), span: Some((l, r)) }
+}
+
+TIdent: Ident = {
+    <l: @L> <t: "tid"> <r: @R> =>
+        Ident { name: t.to_owned(), span: Some((l, r)) }
+}
 
 ///////////// HELPERS //////////////
 // One or more T's separated by S's
@@ -263,19 +295,9 @@ SepMulti<T, S>: Vec<T> = {
         { let mut l = l; l.push(r); l }
 }
 
-
-// Pattern
-Pattern: ast::Pattern = {
-    "(" <multi: SepMulti<Pattern, ",">> ")" =>
-        ast::Pattern::Tuple(multi),
-    <a: Annot> => ast::Pattern::Annot(a.0, a.1),
-    "_" => ast::Pattern::Wildcard
-}
-
-
-// Type annotated identifier
-Annot: (String, ast::Type) = {
-    <v1: "eid"> ":" <t: TypExpr> => (v1.to_string(), t)
+// Surrounded by parentheses
+Paren<T>: T = {
+    "(" <t: T> ")" => t
 }
 
 //////////// END HELPERS /////////////

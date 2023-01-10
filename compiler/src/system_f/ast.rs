@@ -39,7 +39,7 @@ pub enum RawType {
     /// Function types
     Arrow(Box<Type>, Box<Type>),
     /// Universal types
-    Forall(String, Box<Type>),
+    Forall(Ident, Box<Type>),
 }
 
 /// Expressions without metadata
@@ -47,7 +47,7 @@ pub enum RawType {
 pub enum RawExpr {
     /// Constants
     Con { val: Constant },
-    /// Stringentifiers aka variables
+    /// Variables
     Var { id: String },
     /// `let [pat] = [exp] in [body] end`
     Let {
@@ -68,18 +68,26 @@ pub enum RawExpr {
         rhs: Box<Expr>,
     },
     /// Functions that take eid's as arguments, ex. `lambda x: int. x + 1
-    Lambda {
-        args: Vec<(String, Type)>,
-        body: Box<Expr>,
-    },
+    Lambda { args: Vec<Pattern>, body: Box<Expr> },
     /// Type abstractions, ex. `any X. (lambda x: X. x)`
-    Any { poly: String, body: Box<Expr> },
+    Any { poly: Ident, body: Box<Expr> },
     /// if [cond] then [t] else [f]
     If {
         cond: Box<Expr>,
         branch_t: Box<Expr>,
         branch_f: Box<Expr>,
     },
+}
+
+/// Patterns
+#[derive(Debug, PartialEq, Clone)]
+pub enum RawPattern {
+    /// Not producing binding `_: Int`
+    Wildcard(Type),
+    /// Variable binding like `x: Int`
+    Binding(Ident, Type),
+    /// Tuple patterns like `(x: Int, (y: Bool, _: A))`
+    Tuple(Vec<Pattern>),
 }
 
 /// The type of types : )
@@ -93,6 +101,13 @@ pub struct Type {
 #[derive(Debug, PartialEq, Clone)]
 pub struct Expr {
     pub expr: RawExpr,
+    pub span: Option<Span>,
+}
+
+/// Patterns with span
+#[derive(Debug, PartialEq, Clone)]
+pub struct Pattern {
+    pub pat: RawPattern,
     pub span: Option<Span>,
 }
 
@@ -118,13 +133,11 @@ pub enum Binary {
     Or,
 }
 
-/// Patterns
+/// Identifiers with span
 #[derive(Debug, PartialEq, Clone)]
-pub enum Pattern {
-    Wildcard,
-    /// Annotated variables
-    Annot(String, Type),
-    Tuple(Vec<Pattern>),
+pub struct Ident {
+    pub name: String,
+    pub span: Option<Span>,
 }
 
 /// Start and end positions
@@ -300,11 +313,8 @@ impl Display for RawExpr {
             }
             RawExpr::Lambda { args, body } => {
                 write!(f, "λ ")?;
-                for (i, (v, t)) in args.iter().enumerate() {
-                    if i != 0 {
-                        write!(f, ", ")?;
-                    }
-                    write!(f, "{v}: {t}")?;
+                for pat in args {
+                    write!(f, " {pat}")?
                 }
                 write!(f, ". {body}")
             }
@@ -318,6 +328,32 @@ impl Display for RawExpr {
             } => {
                 write!(f, "if {cond} then {branch_t} else {branch_f}")
             }
+        }
+    }
+}
+
+impl Display for Pattern {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let pat = &self.pat;
+        write!(f, "{pat}")
+    }
+}
+
+impl Display for RawPattern {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            RawPattern::Tuple(patterns) => {
+                write!(f, "(")?;
+                for (i, p) in patterns.iter().enumerate() {
+                    if i != 0 {
+                        write!(f, ", ")?
+                    }
+                    write!(f, "{p}")?
+                }
+                write!(f, ")")
+            }
+            RawPattern::Binding(v, t) => write!(f, "{v}: {t}"),
+            RawPattern::Wildcard(t) => write!(f, "_: {t}"),
         }
     }
 }
@@ -359,21 +395,9 @@ impl Display for Binary {
     }
 }
 
-impl Display for Pattern {
+impl Display for Ident {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            Pattern::Tuple(patterns) => {
-                write!(f, "(")?;
-                for (i, p) in patterns.iter().enumerate() {
-                    if i != 0 {
-                        write!(f, ", ")?
-                    }
-                    write!(f, "{p}")?
-                }
-                write!(f, ")")
-            }
-            Pattern::Annot(v, t) => write!(f, "{v} : {t}"),
-            Pattern::Wildcard => write!(f, "_"),
-        }
+        let name = &self.name;
+        write!(f, "{name}")
     }
 }

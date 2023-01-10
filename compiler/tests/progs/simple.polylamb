@@ -1,0 +1,14 @@
+let double: Int -> Int =
+  lambda (x: Int). x + x
+
+let double_2: Int -> Int =
+  lambda (x: Int). 2 + x
+
+let all: Int -> Int -> (Int -> Bool) -> Bool =
+  lambda (min: Int) (max: Int) (pred: Int -> Bool).
+    let folder: Int -> Bool -> Bool =
+      lambda (element: Int) (acc: Bool).
+        if element - 1 < max
+	then (pred acc) && (folder (element + 1))
+	else acc in
+    folder min true

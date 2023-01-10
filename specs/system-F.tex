@@ -47,7 +47,8 @@
     \newrow{\kwt{true} $|$ \kwt{false}}{boolean literals: \kwt{Bool}}
     \newrow{\dots $|$ \kwm{\sim}\kwt{2} $|$ \kwm{\sim}\kwt{1} $|$ \kwt{0} $|$ \kwt{1} $|$ \kwt{2} $|$ \dots}{64-bit signed ints: \kwt{Int}}
     \hline
-    \row{pat}{\gm{eid} \kwt{:} \gm{\tau}}{type-annotated variable}
+    \row{pat}{\kwt{_} \kwt{:} \gm{\tau}}{discarded variable}
+    \newrow{\gm{eid} \kwt{:} \gm{\tau}}{type-annotated variable}
     \newrow{\kwt{(}\gm{pat_1}, \dots, \gm{pat_n}\kwt{)}}{$n$-tuple destructor, $n\geq 2$}
     \hline
   \end{tabular}
@@ -59,8 +60,7 @@
   \centering
   \begin{tabular}{l p{\ColOne} p{\ColTwo} p{\ColThree} p{\ColFour}}
     \hline
-    \row{\tau}{\gm{\tau}}{types}
-    \newrow{\gm{tid}}{type identifier}
+    \row{\tau}{\gm{tid}}{type identifier}
     \newrow{\kwt{(}\gm{\tau}\kwt{)}}{parenthesized}
     \newrow{\gm{\tau_1} \kwt{->} \gm{\tau_2}}{arrow types}
     \newrow{\kwm{\,\forall} \gm{tid^{\geq 1}}\kwt{.} \gm{\tau}}{universal types}
@@ -70,6 +70,18 @@
   \end{tabular}
 \end{figure}
 
+\subsection*{Declarations}
+
+\begin{figure}[h]
+  \centering
+  \begin{tabular}{l p{\ColOne} p{\ColTwo} p{\ColThree} p{\ColFour}}
+    \hline
+    \row{\tau}{\kwt{let} \gm{eid} \kwt{:} \gm{tid} \kwt{=} \gm{e} }{declaration}
+    \hline
+  \end{tabular}
+\end{figure}
+
+
 \subsection*{Notes}
 Multiple argument \kwm{\lambda}'s, \kwm{\Lambda}'s, and \kwm{\forall}'s are syntactic sugar for nested versions. For instance,
 \begin{center}
@@ -78,8 +90,11 @@ Multiple argument \kwm{\lambda}'s, \kwm{\Lambda}'s, and \kwm{\forall}'s are synt
   $\lambda$ \texttt{x:Int.} $\lambda$ \texttt{y:Int.} \texttt{x} \texttt{+} \texttt{y}
 \end{center}
 
+
+
+
 \section*{Semantics:}
-CBV big step semantics.
+Call-by-value big step semantics.
 
 When a bound variable is bound again, the new binding takes over.
 

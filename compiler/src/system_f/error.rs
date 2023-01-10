@@ -9,9 +9,9 @@ pub type ParseError<'a> = lalrpop_util::ParseError<usize, Token<'a>, usize>;
 #[derive(Debug)]
 pub struct TypeError {
     ///Byte offsets from source code
-    pub(crate) title: &'static str,
-    pub(crate) annot_type: AnnotationType,
-    pub(crate) annotations: Vec<SourceAnnotation<'static>>,
+    pub title: &'static str,
+    pub annot_type: AnnotationType,
+    pub annotations: Vec<SourceAnnotation<'static>>,
 }
 
 impl<'a> Into<Snippet<'a>> for TypeError {
