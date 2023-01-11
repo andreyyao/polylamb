@@ -1,9 +1,8 @@
 use annotate_snippets::display_list::DisplayList;
 use annotate_snippets::snippet::Snippet;
-use compiler::system_f::ast::{Expr, Type};
-use compiler::system_f::error::TypeError;
-use compiler::system_f::parse::{parse_decl, parse_expr, parse_type};
-use compiler::system_f::semant::{alpha_equiv, check, check_closed_expr};
+use compiler::system_f::ast::Expr;
+use compiler::system_f::parse::{parse_expr, parse_type};
+use compiler::system_f::semant::{alpha_equiv, check_closed_expr};
 
 const ALPHA_EQUIV_POSITIVE: &[(&str, &str)] = &[
     ("∀ A. A", "∀ B. B"),
@@ -44,6 +43,25 @@ const ANYS: &[(&str, &str)] = &[
         "any X. lambda (x1: Int) (x2: Int). (x1, x2)",
         "forall B. Int -> Int -> (Int * Int)",
     ),
+    (
+        "(any X. any Y. lambda (y: Y). y) [Int] [Bool]",
+        "Bool -> Bool",
+    ),
+];
+
+/// Pairs of (lambda, type) strings
+const LAMBDAS: &[(&str, &str)] = &[
+    ("lambda (_: Int). 0", "Int -> Int"),
+    (
+        "lambda (x: Int) (y: Int). (x - y) * (x + y)",
+        "Int -> Int -> Int",
+    ),
+];
+
+/// Pairs of (tuple, type) strings
+const TUPLES: &[(&str, &str)] = &[
+    ("(lambda (x: Int). x + 1, lambda (x: Bool). if x then 1 else 0)", "(Int -> Int) * (Bool -> Int)"),
+    ("(69, any A. lambda (a: A). a)", "Int * (forall A. A -> A)")
 ];
 
 /// Negative tests form binary expressions
@@ -59,10 +77,10 @@ const LAMBDA_NEG: &[&str] = &[
     "lambda (x: Int) (y: Bool, (z: Unit, x: Int)). y",
 ];
 
-// const LET_NEG: &[&str] = &[
-//     "let (x: Int) = 1 in x && true",
-//     "let (x: Int) (y: Bool) = (1, 2) in x + y"
-// ];
+const LET_NEG: &[&str] = &[
+    "let (x: Int) = 1 in x && true",
+    "let (x: Int, y: Bool) = (1, 2) in x + y"
+];
 
 #[test]
 fn test_alpha_equiv() {
@@ -88,7 +106,7 @@ fn test_alpha_equiv_neg() {
 
 #[test]
 fn test_type_checking() {
-    let everything = [BINOPS, ANYS];
+    let everything = [BINOPS, ANYS, LAMBDAS, TUPLES];
     for suite in everything {
         for (s1, s2) in suite {
             let exp = parse_expr(s1).unwrap().expr;
@@ -103,7 +121,7 @@ fn test_type_checking() {
 
 #[test]
 fn test_type_checking_negative() {
-    let everything = [BINOP_NEG, LAMBDA_NEG];
+    let everything = [BINOP_NEG, LAMBDA_NEG, LET_NEG];
     for suite in everything {
         for s in suite {
             let exp = parse_expr(s).unwrap().expr;

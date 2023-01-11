@@ -68,6 +68,7 @@ This project originated as a course project for [*CS6120 - Advanced Compilers*](
 
 * [Logos](https://github.com/maciejhirsz/logos) - fast lexer
 * [LALRPOP](https://github.com/lalrpop/lalrpop) - LR(1) parser generator
+* [rust-ansi-term](https://github.com/ogham/rust-ansi-term) - Ansi term
 
 <p align="right">(<a href="#top">back to top</a>)</p>
 
@@ -124,14 +125,14 @@ Not available at the moment.
 <!-- ROADMAP -->
 ## Roadmap
 
-- [x] Standard ML
-	- [x] language support [specification](specs/sml-support.pdf)
+- [x] System F
+	- [x] language [specification](specs/sml-support.pdf)
 	- [x] lexing
 	- [x] parsing
-	- [ ] type checking
+	- [x] type checking
 	- [ ] CPS transformation
 	- [ ] assembly emission
-- [x] typed RISC-V
+- [ ] typed RISC-V
 	- [ ] syntax specification
 	- [ ] statis semantics
 	- [ ] parsing

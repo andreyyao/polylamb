@@ -1,16 +1,15 @@
 use annotate_snippets::display_list::{DisplayList, FormatOptions};
 use annotate_snippets::snippet::{Annotation, Slice, Snippet};
 use compiler::system_f::parse::parse_decl;
-use compiler::system_f::{parse::parse_expr, semant::check_closed_expr};
+use compiler::system_f::semant::check_closed_expr;
 
-const PROGRAM: &str =
-"let all: Int -> Int -> (Int -> Bool) -> Bool =
-  lambda (min: Int) (min: Int) (pred: Int -> Bool).
+const PROGRAM: &str = "let all: Int -> Int -> (Int -> Bool) -> Bool =
+  lambda (min: Int) (max: Int) (pred: Int -> Bool).
     let (folder: Int -> Bool -> Bool) =
       lambda (element: Int) (acc: Bool).
         if element - 1 < max
-	then (pred element) && true
-	else acc in
+        then (pred element) && true
+        else b + acc in
     folder min true";
 
 fn main() {
@@ -26,7 +25,7 @@ fn main() {
         footer: vec![],
         slices: vec![Slice {
             source: PROGRAM,
-            line_start: 0, // TODO
+            line_start: 1, // TODO
             origin: None,
             annotations: err.annotations,
             fold: false,

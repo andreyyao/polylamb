@@ -19,7 +19,7 @@ Returns: The raw type of the checked `expr`, or `TypeError`
  * `val_ctxt`: Persistent mapping from variable names to (raw type, location of binding).
  Invariance: each value in map, if exists, has length at least 1
  * `typ_vars`: Set of declared type variables */
-pub fn check<'a>(
+pub fn check_expr<'a>(
     expr: &'a Expr,
     val_ctxt: &mut Context<'a>,
     typ_vars: &mut Persist<HashSet<&'a String>>,
@@ -45,28 +45,42 @@ pub fn check<'a>(
             }),
         },
         Let { pat, exp, body } => {
-	    let exp_typ = check(exp, val_ctxt, typ_vars)?;
-	    let mut var_map: HashMap<&'a String, Span> = HashMap::new();
-	    let pat_typ = traverse_pat(pat, &mut var_map, val_ctxt)?;
-	    if alpha_equiv(&exp_typ, &pat_typ) {
-		check(body, val_ctxt, typ_vars)
-	    } else {
-		println!("{}", pat_typ);
-		println!("{}", exp_typ);
-		Err(TypeError {
+            val_ctxt.enter();
+            let exp_typ = match &pat.pat {
+                // Functions can refer to itself in body for recursion
+                RawPattern::Binding(ident, Type { typ, .. }) => {
+                    match &typ {
+                        Arrow(_, _) => {
+                            val_ctxt
+                                .current()
+                                .insert(&ident.name, (typ.clone(), pat.span.unwrap()));
+                        }
+                        _ => (),
+                    };
+                    check_expr(exp, val_ctxt, typ_vars)?
+                }
+                _ => check_expr(exp, val_ctxt, typ_vars)?,
+            };
+            val_ctxt.exeunt();
+            let mut vars: HashSet<&'a String> = HashSet::new();
+            let pat_typ = traverse_pat(pat, &mut vars, val_ctxt)?;
+            if alpha_equiv(&exp_typ, &pat_typ) {
+                check_expr(body, val_ctxt, typ_vars)
+            } else {
+                Err(TypeError {
                     title: "Mismatched types in pattern",
                     annot_type: AnnotationType::Error,
                     annotations: vec![SourceAnnotation {
-			range: pat.span.unwrap(),
-			label: "this pattern has wrong type",
-			annotation_type: AnnotationType::Error,
+                        range: pat.span.unwrap(),
+                        label: "this pattern has wrong type",
+                        annotation_type: AnnotationType::Error,
                     }],
-		})
-	    }
+                })
+            }
         }
         EApp { exp, arg } => {
-            let exp_t = check(&exp, val_ctxt, typ_vars)?;
-            let arg_t = check(&arg, val_ctxt, typ_vars)?;
+            let exp_t = check_expr(&exp, val_ctxt, typ_vars)?;
+            let arg_t = check_expr(&arg, val_ctxt, typ_vars)?;
             match exp_t {
                 RawType::Arrow(t1, t2) => {
                     if alpha_equiv(&t1.typ, &arg_t) {
@@ -95,7 +109,7 @@ pub fn check<'a>(
             }
         }
         TApp { exp, arg } => {
-            let exp_t = check(exp, val_ctxt, typ_vars)?;
+            let exp_t = check_expr(exp, val_ctxt, typ_vars)?;
             match exp_t {
                 RawType::Forall(tvar, typ) => {
                     let mut t = typ.typ.clone();
@@ -116,7 +130,7 @@ pub fn check<'a>(
         Tuple { entries } => {
             let mut typs = vec![];
             for e in entries {
-                adventure!(typ, Type::new(check(e, val_ctxt, typ_vars)?), val_ctxt);
+                adventure!(typ, Type::new(check_expr(e, val_ctxt, typ_vars)?), val_ctxt);
                 typs.push(typ)
             }
             Ok(RawType::Prod(typs))
@@ -135,8 +149,8 @@ pub fn check<'a>(
                     }],
                 }
             }
-            adventure!(type_l, check(lhs, val_ctxt, typ_vars)?, val_ctxt);
-            adventure!(type_r, check(rhs, val_ctxt, typ_vars)?, val_ctxt);
+            adventure!(type_l, check_expr(lhs, val_ctxt, typ_vars)?, val_ctxt);
+            adventure!(type_r, check_expr(rhs, val_ctxt, typ_vars)?, val_ctxt);
             match op {
                 Add | Sub | Mul | Eq | Ne | Gt | Lt => {
                     let err_msg = "expected to have type `Int`";
@@ -161,12 +175,12 @@ pub fn check<'a>(
         }
         Lambda { args, body } => {
             // Current variable names
-            let mut var_map: HashMap<&String, Span> = HashMap::new();
+            let mut vars: HashSet<&'a String> = HashSet::new();
             let typs = args
                 .iter()
-                .map(|p| traverse_pat(p, &mut var_map, val_ctxt))
+                .map(|p| traverse_pat(p, &mut vars, val_ctxt))
                 .collect::<Result<Vec<RawType>, TypeError>>()?;
-            let base_typ = check(body, val_ctxt, typ_vars)?;
+            let base_typ = check_expr(body, val_ctxt, typ_vars)?;
             let typ = typs.iter().rev().fold(base_typ, |acc, ele| {
                 Arrow(
                     Box::new(Type::new(ele.clone())),
@@ -178,7 +192,7 @@ pub fn check<'a>(
         }
         Any { poly, body } => {
             typ_vars.current().insert(&poly.name);
-            let typ = check(body, val_ctxt, typ_vars)?;
+            let typ = check_expr(body, val_ctxt, typ_vars)?;
             let poly_copy = Ident {
                 name: poly.name.clone(),
                 span: None,
@@ -190,9 +204,10 @@ pub fn check<'a>(
             branch_t,
             branch_f,
         } => {
-            adventure!(c_typ, check(cond, val_ctxt, typ_vars)?, val_ctxt);
-            adventure!(t_typ, check(branch_t, val_ctxt, typ_vars)?, val_ctxt);
-            adventure!(f_typ, check(branch_f, val_ctxt, typ_vars)?, val_ctxt);
+            // Check the three branches independently
+            adventure!(c_typ, check_expr(cond, val_ctxt, typ_vars)?, val_ctxt);
+            adventure!(t_typ, check_expr(branch_t, val_ctxt, typ_vars)?, val_ctxt);
+            adventure!(f_typ, check_expr(branch_f, val_ctxt, typ_vars)?, val_ctxt);
             match c_typ {
                 Bool => {
                     if alpha_equiv(&t_typ, &f_typ) {
@@ -224,21 +239,16 @@ pub fn check<'a>(
     }
 }
 
-// pub fn check_expr(expr: &mut Expr) {
-//     let mut ctxt = Persistent::<RawType>::new();
-//     let typ = check(&expr.expr, &mut ctxt);
-// }
+pub fn check_decl(decl: Decl) {}
+
+pub fn check_prog(prog: Prog) {}
 
 // Check closed expression
 pub fn check_closed_expr(expr: &Expr) -> Result<RawType, TypeError> {
     let mut ctxt = Persist::new(HashMap::new());
     let mut tvars = Persist::new(HashSet::new());
-    check(expr, &mut ctxt, &mut tvars)
+    check_expr(expr, &mut ctxt, &mut tvars)
 }
-
-pub fn check_decl(decl: Decl) {}
-
-pub fn check_prog(prog: Prog) {}
 
 /** Capture-avoiding substitution
 `tvar`: The type variable to replace
@@ -329,42 +339,43 @@ or `Err(te)` where te is the type error, when yes duplicates.
 Adds binding to `ctxt` along the way
 # Arguments
  * `pat`: The pattern to check
- * `var_map`: Mapping from bindings to their spans in source code
+ * `vars`: Set of vars already seen in `pat`
  * `ctxt`: The typing Context */
 fn traverse_pat<'a>(
     pat: &'a Pattern,
-    var_map: &mut HashMap<&'a String, Span>,
+    vars: &mut HashSet<&'a String>,
     ctxt: &mut Context<'a>,
 ) -> Result<RawType, TypeError> {
     match &pat.pat {
         RawPattern::Binding(ident, typ) => {
-            ctxt.current()
-                .insert(&ident.name, (typ.typ.clone(), ident.span.unwrap().clone()));
-            let hehe = var_map.insert(&ident.name, pat.span.unwrap());
-            match hehe {
-                Some(span_original) => Err(TypeError {
+            let seen = !vars.insert(&ident.name);
+            if seen {
+                Err(TypeError {
                     title: "Conflicting argument names",
                     annot_type: AnnotationType::Error,
                     annotations: vec![
                         SourceAnnotation {
                             range: pat.span.unwrap(),
-                            label: "variable bound multiple times in lambda",
+                            label: "variable bound multiple times in pattern",
                             annotation_type: AnnotationType::Error,
                         },
                         SourceAnnotation {
-                            range: span_original,
+                            range: ctxt.current().get(&ident.name).unwrap().1,
                             label: "it was already defined here",
-                            annotation_type: AnnotationType::Info,
+                            annotation_type: AnnotationType::Help,
                         },
                     ],
-                }),
-                None => Ok(typ.typ.clone()),
+                })
+            } else {
+                ctxt.current()
+                    .insert(&ident.name, (typ.typ.clone(), ident.span.unwrap().clone()));
+                Ok(typ.typ.clone())
             }
         }
         RawPattern::Tuple(pats) => {
             let typs = pats
                 .iter()
-                .map(|p| traverse_pat(p, var_map, ctxt))
+                .map(|p| traverse_pat(p, vars, ctxt))
                 .collect::<Result<Vec<RawType>, TypeError>>()?;
             Ok(RawType::Prod(
                 typs.iter().map(|t| Type::new(t.clone())).collect(),
