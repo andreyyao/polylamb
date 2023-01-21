@@ -11,7 +11,7 @@
   <h3 align="center">TAL - RISC-V</h3>
 
   <p align="center">
-    A type-preserving compiler from Standard ML to typed RISC-V assembly, written in rust.
+    A type-preserving compiler from System F to typed RISC-V assembly, written in rust.
     <!-- <br /> -->
     <!-- <a href="https://github.com/othneildrew/Best-README-Template"><strong>Explore the docs »</strong></a> -->
     <!-- <br /> -->
