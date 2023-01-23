@@ -1,21 +1,21 @@
 use annotate_snippets::display_list::{DisplayList, FormatOptions};
 use annotate_snippets::snippet::{Annotation, Slice, Snippet};
-use compiler::system_f::parse::parse_decl;
-use compiler::system_f::semant::check_closed_expr;
+use compiler::system_f::parse::parse_prog;
+use compiler::system_f::semant::check_prog;
 
 const PROGRAM: &str = "let all: Int -> Int -> (Int -> Bool) -> Bool =
-  lambda (min: Int) (max: Int) (pred: Int -> Bool).
-    let (folder: Int -> Bool -> Bool) =
-      lambda (element: Int) (acc: Bool).
+  lambda min: Int. lambda max: Int. lambda pred: Int -> Bool.
+    let folder: Int -> Bool -> Bool =
+      lambda element: Int. lambda acc: Bool.
         if element - 1 < max
         then (pred element) && true
         else b + acc in
     folder min true";
 
 fn main() {
-    let expr = parse_decl(PROGRAM).unwrap().body;
-    let typ = check_closed_expr(&expr);
-    let err = typ.unwrap_err();
+    let prog = parse_prog(PROGRAM).unwrap();
+    let result = check_prog(&prog);
+    let err = result.unwrap_err();
     let snippet = Snippet {
         title: Some(Annotation {
             id: None,

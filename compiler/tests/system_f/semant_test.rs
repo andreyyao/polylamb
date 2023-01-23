@@ -34,34 +34,40 @@ const BINOPS: &[(&str, &str)] = &[
 
 /// Pairs of (any, type) strings
 const ANYS: &[(&str, &str)] = &[
-    ("any A. lambda (x: A) (y: A). x", "forall B. B -> B -> B"),
     (
-        "any X. lambda (x: X * X). (x, x)",
+        "any A. lambda x: A. lambda y: A. x",
+        "forall B. B -> B -> B",
+    ),
+    (
+        "any X. lambda x: X * X. (x, x)",
         "forall Y. (Y * Y) -> ((Y * Y) * (Y * Y))",
     ),
     (
-        "any X. lambda (x1: Int) (x2: Int). (x1, x2)",
+        "any X. lambda x1: Int. lambda x2: Int. (x1, x2)",
         "forall B. Int -> Int -> (Int * Int)",
     ),
     (
-        "(any X. any Y. lambda (y: Y). y) [Int] [Bool]",
+        "(any X. any Y. lambda y: Y. y) [Int] [Bool]",
         "Bool -> Bool",
     ),
 ];
 
 /// Pairs of (lambda, type) strings
 const LAMBDAS: &[(&str, &str)] = &[
-    ("lambda (_: Int). 0", "Int -> Int"),
+    ("lambda _: Int. 0", "Int -> Int"),
     (
-        "lambda (x: Int) (y: Int). (x - y) * (x + y)",
+        "lambda x: Int. lambda y: Int. (x - y) * (x + y)",
         "Int -> Int -> Int",
     ),
 ];
 
 /// Pairs of (tuple, type) strings
 const TUPLES: &[(&str, &str)] = &[
-    ("(lambda (x: Int). x + 1, lambda (x: Bool). if x then 1 else 0)", "(Int -> Int) * (Bool -> Int)"),
-    ("(69, any A. lambda (a: A). a)", "Int * (forall A. A -> A)")
+    (
+        "(lambda x: Int. x + 1, lambda x: Bool. if x then 1 else 0)",
+        "(Int -> Int) * (Bool -> Int)",
+    ),
+    ("(69, any A. lambda a: A. a)", "Int * (forall A. A -> A)"),
 ];
 
 /// Negative tests form binary expressions
@@ -73,13 +79,13 @@ const BINOP_NEG: &[&str] = &[
 ];
 
 const LAMBDA_NEG: &[&str] = &[
-    "lambda (x: Int) (x: Int). x",
-    "lambda (x: Int) (y: Bool, (z: Unit, x: Int)). y",
+    "lambda x: Int. lambda x: Int. y",
+    "lambda x: Int. lambda (y: Bool, (z: Unit, y: Int)). y",
 ];
 
 const LET_NEG: &[&str] = &[
-    "let (x: Int) = 1 in x && true",
-    "let (x: Int, y: Bool) = (1, 2) in x + y"
+    "let x: Int = 1 in x && true",
+    "let (x: Int, y: Bool) = (1, 2) in x + y",
 ];
 
 #[test]

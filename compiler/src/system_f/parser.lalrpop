@@ -107,7 +107,7 @@ ValExprLet: Expr = {
 
 // Lambda and any. Expression body extends as far as possible
 ValExpr2: Expr = {
-    <l: @L> "lambda" <a: Pattern+> "." <e: ValExpr> <r: @R> =>
+    <l: @L> "lambda" <a: Pattern> "." <e: ValExpr> <r: @R> =>
         Expr {
 	    expr: RawExpr::Lambda{ args: a, body: Box::new(e) },
 	    span: Some((l, r))
@@ -246,29 +246,22 @@ TypExprAtom: Type = {
 }
 
 // Pattern
-Pattern: ast::Pattern = {
-    <p: Paren<PatternAtomic>> => p,
-    <p: PatternCompound> => p
-}
-
-// Yep
-PatternEither: ast::Pattern = {
-    <p: PatternAtomic> => p,
-    <p: PatternCompound> => p
-}
-
-// Patterns without parentheses outside
-PatternAtomic: ast::Pattern = {
-    <l: @L> "_" ":" <t: TypExpr> <r: @R> =>
-        Pattern { pat: RawPattern::Wildcard(t), span: Some((l, r)) },
+Pattern: Pattern = {
+    <l: @L> "(" <multi: SepMulti<Pattern, ",">> ")" <r: @R> =>
+        Pattern {
+	    pat: RawPattern::Tuple(multi),
+	    span: Some((l, r))
+	},
     <l: @L> <v: EIdent> ":" <t: TypExpr> <r: @R> =>
-        Pattern { pat: RawPattern::Binding(v, t), span: Some((l, r)) }
-}
-
-// Patterns with parentheses outside
-PatternCompound: ast::Pattern = {
-    <l: @L> <tup: Paren<SepMulti<PatternEither, ",">>> <r: @R> =>
-        Pattern { pat: RawPattern::Tuple(tup), span: Some((l, r)) }
+       Pattern {
+	    pat: RawPattern::Binding(v, t),
+	    span: Some((l, r))
+	},
+    <l: @L> "_" ":" <t: TypExpr> <r: @R> =>
+        Pattern {
+	    pat: RawPattern::Wildcard(t),
+	    span: Some((l, r))
+	},
 }
 
 // Identifier

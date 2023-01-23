@@ -16,13 +16,13 @@ pub type Context<'a> = Persist<HashMap<&'a String, (RawType, Span)>>;
 Returns: The raw type of the checked `expr`, or `TypeError`
 # Arguments
  * `expr`: The expression to check
- * `val_ctxt`: Persistent mapping from variable names to (raw type, location of binding).
+ * `val_ctxt`: Persistent mapping from variable names to (raw type, span).
  Invariance: each value in map, if exists, has length at least 1
  * `typ_vars`: Set of declared type variables */
-pub fn check_expr<'a>(
-    expr: &'a Expr,
-    val_ctxt: &mut Context<'a>,
-    typ_vars: &mut Persist<HashSet<&'a String>>,
+pub fn check_expr<'ast>(
+    expr: &'ast Expr,
+    val_ctxt: &mut Context<'ast>,
+    typ_vars: &mut Persist<HashSet<&'ast String>>,
 ) -> Result<RawType, TypeError> {
     use RawExpr::*;
     use RawType::*;
@@ -62,7 +62,7 @@ pub fn check_expr<'a>(
                 _ => check_expr(exp, val_ctxt, typ_vars)?,
             };
             val_ctxt.exeunt();
-            let mut vars: HashSet<&'a String> = HashSet::new();
+            let mut vars: HashSet<&'ast String> = HashSet::new();
             let pat_typ = traverse_pat(pat, &mut vars, val_ctxt)?;
             if alpha_equiv(&exp_typ, &pat_typ) {
                 check_expr(body, val_ctxt, typ_vars)
@@ -175,20 +175,13 @@ pub fn check_expr<'a>(
         }
         Lambda { args, body } => {
             // Current variable names
-            let mut vars: HashSet<&'a String> = HashSet::new();
-            let typs = args
-                .iter()
-                .map(|p| traverse_pat(p, &mut vars, val_ctxt))
-                .collect::<Result<Vec<RawType>, TypeError>>()?;
-            let base_typ = check_expr(body, val_ctxt, typ_vars)?;
-            let typ = typs.iter().rev().fold(base_typ, |acc, ele| {
-                Arrow(
-                    Box::new(Type::new(ele.clone())),
-                    Box::new(Type::new(acc.clone())),
-                )
-            });
-            // Fold to get nested arrow types
-            Ok(typ)
+            let mut vars: HashSet<&'ast String> = HashSet::new();
+            let arg_typ = traverse_pat(args, &mut vars, val_ctxt)?;
+            let body_typ = check_expr(body, val_ctxt, typ_vars)?;
+            Ok(Arrow(
+                Box::new(Type::new(arg_typ)),
+                Box::new(Type::new(body_typ)),
+            ))
         }
         Any { poly, body } => {
             typ_vars.current().insert(&poly.name);
@@ -239,9 +232,54 @@ pub fn check_expr<'a>(
     }
 }
 
-pub fn check_decl(decl: Decl) {}
+/** Type-checks the declaration `decl`. `val_ctxt` is a the context up to all the previous declarations.
+If the checked type of the `decl` body matches the `decl` signature, then this adds the pair of (`decl` id, signature) to `val_ctxt`.
+Returns: `Ok` if everything is fine, or `TypeError` otherwise.
+# Arguments
+ * `decl`: The declaration to check
+ * `val_ctxt`: Persistent mapping from variable names to (raw type, span) */
+pub fn check_decl<'ast>(decl: &'ast Decl, val_ctxt: &mut Context<'ast>) -> Result<(), TypeError> {
+    val_ctxt.enter();
+    let typ_vars: HashSet<&'ast String> = HashSet::new();
+    let mut typ_vars_persist = Persist::new(typ_vars);
+    let check_result = check_expr(&decl.body, val_ctxt, &mut typ_vars_persist);
+    val_ctxt.exeunt();
+    match check_result {
+        Ok(typ) => {
+            if alpha_equiv(&typ, &decl.sig.typ) {
+                val_ctxt
+                    .current()
+                    .insert(&decl.id, (typ, decl.sig.span.unwrap()));
+                Ok(())
+            } else {
+                Err(TypeError {
+                    title: "Mismatched type in declaration",
+                    annot_type: AnnotationType::Error,
+                    annotations: vec![SourceAnnotation {
+                        range: decl.body.span.unwrap(),
+                        label: "expression type differs from declaration signature",
+                        annotation_type: AnnotationType::Error,
+                    }],
+                })
+            }
+        }
+        Err(te) => Err(te),
+    }
+}
 
-pub fn check_prog(prog: Prog) {}
+/** Type-checks the program `prog` starting from an empty typing context.
+Returns: `Ok` if everything is fine, or `TypeError` otherwise.
+# Arguments
+ * `prog`: The prog to check */
+pub fn check_prog<'ast>(prog: &'ast Prog) -> Result<(), TypeError> {
+    let map: HashMap<&'ast String, (RawType, Span)> = HashMap::new();
+    let mut val_ctxt = Context::new(map);
+    let declarations = &prog.declarations;
+    for id in &prog.order {
+        check_decl(&declarations[id], &mut val_ctxt)?
+    }
+    Ok(())
+}
 
 // Check closed expression
 pub fn check_closed_expr(expr: &Expr) -> Result<RawType, TypeError> {
@@ -253,8 +291,7 @@ pub fn check_closed_expr(expr: &Expr) -> Result<RawType, TypeError> {
 /** Capture-avoiding substitution
 `tvar`: The type variable to replace
 `target`: The type to replace with
-`typ`: The type in which to perform the replacement
-*/
+`typ`: The type in which to perform the replacement */
 fn substitute(tvar: &String, target: &RawType, typ: &mut RawType) {
     use RawType::*;
     match typ {

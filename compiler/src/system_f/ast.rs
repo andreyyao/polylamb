@@ -68,7 +68,7 @@ pub enum RawExpr {
         rhs: Box<Expr>,
     },
     /// Functions that take eid's as arguments, ex. `lambda x: int. x + 1
-    Lambda { args: Vec<Pattern>, body: Box<Expr> },
+    Lambda { args: Pattern, body: Box<Expr> },
     /// Type abstractions, ex. `any X. (lambda x: X. x)`
     Any { poly: Ident, body: Box<Expr> },
     /// if [cond] then [t] else [f]
@@ -312,11 +312,7 @@ impl Display for RawExpr {
                 write!(f, "({lhs}) {op} ({rhs})")
             }
             RawExpr::Lambda { args, body } => {
-                write!(f, "λ ")?;
-                for pat in args {
-                    write!(f, " {pat}")?
-                }
-                write!(f, ". {body}")
+                write!(f, "λ {args}. {body}")
             }
             RawExpr::Any { poly, body } => {
                 write!(f, "Λ {poly}. {body}")
