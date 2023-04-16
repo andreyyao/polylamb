@@ -4,7 +4,7 @@ use logos::Logos;
 /// Expects to see `token` when lexing `input`
 fn check_one(input: &str, token: Token) {
     let mut lexer = Token::lexer(input);
-    assert_eq!(lexer.next(), Some(token));
+    assert_eq!(lexer.next(), Some(Ok(token)));
     assert_eq!(lexer.slice(), input);
 }
 

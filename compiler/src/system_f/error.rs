@@ -4,6 +4,8 @@ use annotate_snippets::{
     snippet::{Annotation, AnnotationType, Slice, Snippet, SourceAnnotation},
 };
 
+pub type LexError = usize;
+
 pub type ParseError<'a> = lalrpop_util::ParseError<usize, Token<'a>, usize>;
 
 #[derive(Debug)]

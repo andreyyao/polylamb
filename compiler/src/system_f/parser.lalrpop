@@ -1,4 +1,4 @@
-use crate::system_f::{ast, lex, parse::utils};
+use crate::system_f::{ast, lex, error, parse::utils};
 use ast::{Prog, Decl, Expr, RawExpr, Type, RawType, Pattern, RawPattern, Ident};
 
 
@@ -7,7 +7,7 @@ grammar<'a>;
 // Using tokens from Logos
 extern {
     type Location = usize;
-    type Error = lex::LexicalError;
+    type Error = error::LexError;
     enum lex::Token<'a> {
         "."         => lex::Token::Dot,
         ","         => lex::Token::Comma,
