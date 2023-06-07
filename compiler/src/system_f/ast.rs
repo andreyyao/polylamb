@@ -250,13 +250,14 @@ impl Display for RawType {
             RawType::Bool => write!(f, "Bool"),
             RawType::Unit => write!(f, "Unit"),
             RawType::Prod(typs) => {
+		write!(f, "(")?;
                 for (i, t) in typs.iter().enumerate() {
                     if i != 0 {
-                        write!(f, " * ")?;
+                        write!(f, ", ")?;
                     }
                     fmt_composite(t, f)?;
                 }
-                write!(f, "")
+                write!(f, ")")
             }
             RawType::Arrow(x, y) => {
                 fmt_composite(x, f)?;

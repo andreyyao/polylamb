@@ -7,11 +7,11 @@ use compiler::system_f::semant::{alpha_equiv, check_closed_expr};
 const ALPHA_EQUIV_POSITIVE: &[(&str, &str)] = &[
     ("∀ A. A", "∀ B. B"),
     ("X", "X"),
-    ("Int * (A -> B) * (∀ X. Y)", "Int * (A -> B) * (∀ Z. Y)"),
-    ("∀ X. X * (∀ Y. ∀ Z. X)", "∀ T. T * (∀ A. ∀ B. T)"),
+    ("(Int, (A -> B), (∀ X. Y))", "(Int, (A -> B), (∀ Z. Y))"),
+    ("∀ X. (X, (∀ Y. ∀ Z. X))", "∀ T. (T, (∀ A. ∀ B. T))"),
     ("∀ X. ∀ Y. Y", "∀ A. ∀ A. A"),
     ("Bool -> (∀ X. ∀ Y. X)", "Bool -> (∀ Z. ∀ X. Z)"),
-    ("∀ X. ∀ Y. ∀ Z. Y * Y -> Z", "∀ A. ∀ A. ∀ C. A * A -> C"),
+    ("∀ X. ∀ Y. ∀ Z. (Y, Y) -> Z", "∀ A. ∀ A. ∀ C. (A, A) -> C"),
     ("∀ X. ∀ X. ∀ X. X -> X", "∀ A. ∀ B. ∀ C. C -> C"),
 ];
 
@@ -39,12 +39,12 @@ const ANYS: &[(&str, &str)] = &[
         "forall B. B -> B -> B",
     ),
     (
-        "any X. lambda x: X * X. (x, x)",
-        "forall Y. (Y * Y) -> ((Y * Y) * (Y * Y))",
+        "any X. lambda x: (X, X). (x, x)",
+        "forall Y. (Y, Y) -> ((Y, Y), (Y, Y))",
     ),
     (
         "any X. lambda x1: Int. lambda x2: Int. (x1, x2)",
-        "forall B. Int -> Int -> (Int * Int)",
+        "forall B. Int -> Int -> (Int, Int)",
     ),
     (
         "(any X. any Y. lambda y: Y. y) [Int] [Bool]",
@@ -65,9 +65,9 @@ const LAMBDAS: &[(&str, &str)] = &[
 const TUPLES: &[(&str, &str)] = &[
     (
         "(lambda x: Int. x + 1, lambda x: Bool. if x then 1 else 0)",
-        "(Int -> Int) * (Bool -> Int)",
+        "((Int -> Int), (Bool -> Int))",
     ),
-    ("(69, any A. lambda a: A. a)", "Int * (forall A. A -> A)"),
+    ("(69, any A. lambda a: A. a)", "(Int, (forall A. A -> A))"),
 ];
 
 /// Negative tests form binary expressions

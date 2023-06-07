@@ -4,11 +4,10 @@ version = "0.0.1"
 edition = "2021"
 
 [build-dependencies]
-lalrpop = { version = "0.19.9", default-features = false }
+lalrpop = { version = "0.20.0", default-features = false }
 
 [dependencies]
 logos = "0.13.0"
 logos-derive = "0.13.0"
-lalrpop-util = "0.19.9"
+lalrpop-util = "0.20.0"
 annotate-snippets = { version = "0.9.1", features = ["color"] }
-ansi_term = "0.12.0"
