@@ -57,7 +57,7 @@ pub enum RawExpr {
     },
     /// Expression function application
     EApp { exp: Box<Expr>, arg: Box<Expr> },
-    /// Type specialization, ex. `f[int]`
+    /// Type concretization, ex. `f [Int]`
     TApp { exp: Box<Expr>, arg: Type },
     /// Tuples, n >= 2
     Tuple { entries: Vec<Expr> },

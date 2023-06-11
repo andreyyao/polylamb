@@ -11,7 +11,7 @@
   <h3 align="center">TAL - RISC-V</h3>
 
   <p align="center">
-    A type-preserving compiler from System F to typed RISC-V assembly, written in rust.
+    A language implementation for the Polymorphic Lambda Calculus (System F), written in Rust.
     <!-- <br /> -->
     <!-- <a href="https://github.com/othneildrew/Best-README-Template"><strong>Explore the docs »</strong></a> -->
     <!-- <br /> -->
@@ -57,7 +57,7 @@
 <!-- ABOUT THE PROJECT -->
 ## About The Project
 
-This is a (re)implementation of concepts from the paper [*From system F to typed assembly language*](https://dl.acm.org/doi/10.1145/319301.319345) by Greg Morrisett, David Walker, Karl Crary, and Neal Glew. There are a few implementation details that differ from their original implementation.
+<!-- This is a (re)implementation of concepts from the paper [*From system F to typed assembly language*](https://dl.acm.org/doi/10.1145/319301.319345) by Greg Morrisett, David Walker, Karl Crary, and Neal Glew. There are a few implementation details that differ from their original implementation. -->
 
 This project originated as a course project for [*CS6120 - Advanced Compilers*](https://www.cs.cornell.edu/courses/cs6120/2022sp/) at Cornell University.
 
@@ -126,7 +126,7 @@ Not available at the moment.
 ## Roadmap
 
 - [x] System F
-	- [x] language [specification](specs/sml-support.pdf)
+	- [x] language [specification](specs/system-F.pdf)
 	- [x] lexing
 	- [x] parsing
 	- [x] type checking
@@ -167,7 +167,7 @@ Distributed under the MIT License. See `LICENSE` for more information.
 
 Andrey Yao - Email: `awy32 <at> cornell <dot> edu`
 
-Project Link: [https://github.com/andreyyao/tal-riscv](https://github.com/andreyyao/tal-riscv)
+Project Link: [https://github.com/andreyyao/polylamb](https://github.com/andreyyao/polylamb)
 
 <p align="right">(<a href="#top">back to top</a>)</p>
 
