@@ -107,15 +107,20 @@ ValExprLet: Expr = {
 
 // Lambda and any. Expression body extends as far as possible
 ValExpr2: Expr = {
-    <l: @L> "lambda" <a: Pattern> "." <e: ValExpr> <r: @R> =>
-        Expr {
-	    expr: RawExpr::Lambda{ args: a, body: Box::new(e) },
-	    span: Some((l, r))
+    <l: @L> "lambda" <a: Argument+> ":" <t: TypExpr> "." <e: ValExpr> <r: @R> =>
+    	Expr {
+    	    expr: RawExpr::Lambda{ args: a, body: Box::new(e), ret_typ: t },
+    	    span: Some((l, r))
 	},
-    <l: @L> "any" <a: TIdent> "." <e: ValExpr> <r: @R> =>
-        Expr {
-	    expr: RawExpr::Any{ poly: a, body: Box::new(e) },
-	    span: Some((l, r))
+    <l: @L> "any" <ids: TIdent+> "." <e: ValExpr> <r: @R> => {
+            let initial = Expr {
+                expr: RawExpr::Any{ arg: ids[0].clone(), body: Box::new(e) },
+                span: Some((l, r))
+            };
+	    ids[1..].iter().fold(initial, |acc, ele| Expr {
+                expr: RawExpr::Any{ arg: ele.clone(), body: Box::new(acc) },
+                span: Some((l, r))
+            })
 	},
     <e: ValExpr3> => e
 }
@@ -222,8 +227,14 @@ TypExprForall: Type = {
 }
 
 TypExprArrow: Type = {
-    <l: @L> <t1: TypExprAtom> "->" <t2: TypExprArrow> <r: @R> =>
+    <l: @L> <t1: TypExprProd> "->" <t2: TypExprArrow> <r: @R> =>
         Type { typ: RawType::Arrow(Box::new(t1), Box::new(t2)), span: Some((l, r)) },
+    <t: TypExprProd> => t
+}
+
+TypExprProd: Type = {
+    <l: @L> <ts: SepMulti<TypExprAtom, "*">> <r: @R> =>
+        Type { typ: RawType::Prod(ts), span: Some((l, r)) },
     <t: TypExprAtom> => t
 }
 
@@ -236,14 +247,17 @@ TypExprAtom: Type = {
         Type { typ: RawType::Unit, span: Some((l, r)) },
     <l: @L> <t: "tid"> <r: @R> =>
         Type { typ: RawType::TVar(t.to_owned()), span: Some((l, r)) },
-    <l: @L> <ts: Paren<SepMulti<TypExprAtom, ",">>> <r: @R> =>
-        Type { typ: RawType::Prod(ts), span: Some((l, r)) },
     <t: Paren<TypExpr>> => t
+}
+
+// Argument
+Argument: (Ident, Type) = {
+    "(" <v: EIdent> ":" <t: TypExpr> ")" => (v, t)
 }
 
 // Pattern
 Pattern: Pattern = {
-    <l: @L> "(" <multi: SepMulti<Pattern, ",">> ")" <r: @R> =>
+    <l: @L> <multi: Paren<SepMulti<Pattern, ",">>> <r: @R> =>
         Pattern {
 	    pat: RawPattern::Tuple(multi),
 	    span: Some((l, r))

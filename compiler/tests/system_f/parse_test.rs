@@ -13,13 +13,13 @@ const BINOPS: [&str; 10] = [
     "a + b && c * d || e - f",
     "true + 1023",
     "null && (if true then false else null)",
-    "1 + (lambda x: Int. x) 2",
-    "true * (lambda x:A. lambda y: B. lambda z: C. y)",
+    "1 + (lambda (x: Int) :Int. x) 2",
+    "true * (lambda (x:A) (y:B) (z: C) :I . y)",
 ];
 
 const IFS: [&str; 6] = [
     "if b then 1 else 3",
-    "if 120937 then x + y + z else (lambda x: Bool. not x)",
+    "if 120937 then x + y + z else (lambda (x: Bool) :T. not x)",
     "if b then b else if b then b else b",
     "if (x * y < z == 1) then a else (((2, 4)))",
     "if teehee then 999 else 12479468",

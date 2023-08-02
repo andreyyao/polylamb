@@ -67,10 +67,14 @@ pub enum RawExpr {
         op: Binary,
         rhs: Box<Expr>,
     },
-    /// Functions that take eid's as arguments, ex. `lambda x: int. x + 1
-    Lambda { args: Pattern, body: Box<Expr> },
-    /// Type abstractions, ex. `any X. (lambda x: X. x)`
-    Any { poly: Ident, body: Box<Expr> },
+    /// Functions, ex. `lambda (x: Int): Int. x + 1
+    Lambda {
+        args: Vec<(Ident, Type)>,
+        body: Box<Expr>,
+        ret_typ: Type,
+    },
+    /// Type abstractions, ex. `any X. (lambda (x: X). x)`
+    Any { arg: Ident, body: Box<Expr> },
     /// if [cond] then [t] else [f]
     If {
         cond: Box<Expr>,
@@ -312,11 +316,20 @@ impl Display for RawExpr {
             RawExpr::Binop { lhs, op, rhs } => {
                 write!(f, "({lhs}) {op} ({rhs})")
             }
-            RawExpr::Lambda { args, body } => {
-                write!(f, "λ {args}. {body}")
+            RawExpr::Lambda {
+                args,
+                body,
+                ret_typ,
+            } => {
+                write!(f, "λ ")?;
+                for arg in args {
+                    let (id, typ) = arg;
+                    write!(f, "({id}: {typ})")?
+                }
+                write!(f, ": {ret_typ}. {body}")
             }
-            RawExpr::Any { poly, body } => {
-                write!(f, "Λ {poly}. {body}")
+            RawExpr::Any { arg, body } => {
+                write!(f, "Λ {arg}. {body}")
             }
             RawExpr::If {
                 cond,

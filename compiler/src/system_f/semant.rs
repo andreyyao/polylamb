@@ -173,21 +173,64 @@ pub fn check_expr<'ast>(
                 }
             }
         }
-        Lambda { args, body } => {
-            // Current variable names
-            let mut vars: HashSet<&'ast String> = HashSet::new();
-            let arg_typ = traverse_pat(args, &mut vars, val_ctxt)?;
-            let body_typ = check_expr(body, val_ctxt, typ_vars)?;
-            Ok(Arrow(
-                Box::new(Type::new(arg_typ)),
-                Box::new(Type::new(body_typ)),
-            ))
+        Lambda {
+            args,
+            body,
+            ret_typ,
+        } => {
+            for (id, typ) in args {
+                let bound = val_ctxt
+                    .current()
+                    .insert(&id.name, (typ.typ.clone(), id.span.unwrap()));
+                if bound.is_some() {
+                    return Err(TypeError {
+                        title: "Redefinition of variables",
+                        annot_type: AnnotationType::Error,
+                        annotations: vec![
+                            SourceAnnotation {
+                                range: id.span.unwrap(),
+                                label: "attempting to declare a bound variable",
+                                annotation_type: AnnotationType::Error,
+                            },
+                            SourceAnnotation {
+                                range: val_ctxt.current().get(&id.name).unwrap().1,
+                                label: "it has already been defined here",
+                                annotation_type: AnnotationType::Help,
+                            },
+                        ],
+                    });
+                }
+            }
+	    let body_typ = check_expr(body, val_ctxt, typ_vars)?;
+	    if alpha_equiv(&body_typ, &ret_typ) {
+		let typ = args
+		    .iter()
+		    .fold(ret_typ.clone(), |acc, e| Type::new(Arrow(Box::new(e.1.clone()), Box::new(acc))));
+		Ok(typ.typ)
+	    } else {
+		Err(TypeError {
+                        title: "Type mismatch",
+                        annot_type: AnnotationType::Error,
+                        annotations: vec![
+                            SourceAnnotation {
+                                range: body.span.unwrap(),
+                                label: "the type of this expression",
+                                annotation_type: AnnotationType::Error,
+                            },
+                            SourceAnnotation {
+                                range: ret_typ.span.unwrap(),
+                                label: "doesn't match the return type of the lambda",
+                                annotation_type: AnnotationType::Error,
+                            },
+                        ],
+                })
+	    }
         }
-        Any { poly, body } => {
-            typ_vars.current().insert(&poly.name);
+        Any { arg, body } => {
+            typ_vars.current().insert(&arg.name);
             let typ = check_expr(body, val_ctxt, typ_vars)?;
             let poly_copy = Ident {
-                name: poly.name.clone(),
+                name: arg.name.clone(),
                 span: None,
             };
             Ok(Forall(poly_copy, Box::new(Type::new(typ))))

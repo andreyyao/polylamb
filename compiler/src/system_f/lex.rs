@@ -105,7 +105,7 @@ pub enum Token<'source> {
     End,
     #[regex("Λ|any")]
     Any,
-    #[regex("\\|λ|lambda")]
+    #[regex("\\\\|λ|lambda")]
     Lambda,
     #[regex("∀|forall")]
     Forall,

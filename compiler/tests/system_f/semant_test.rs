@@ -7,11 +7,11 @@ use compiler::system_f::semant::{alpha_equiv, check_closed_expr};
 const ALPHA_EQUIV_POSITIVE: &[(&str, &str)] = &[
     ("∀ A. A", "∀ B. B"),
     ("X", "X"),
-    ("(Int, (A -> B), (∀ X. Y))", "(Int, (A -> B), (∀ Z. Y))"),
-    ("∀ X. (X, (∀ Y. ∀ Z. X))", "∀ T. (T, (∀ A. ∀ B. T))"),
+    ("Int * (A -> B) * (∀ X. Y)", "Int * (A -> B) * (∀ Z. Y)"),
+    ("∀ X. X * (∀ Y. ∀ Z. X)", "∀ T. T * (∀ A. ∀ B. T)"),
     ("∀ X. ∀ Y. Y", "∀ A. ∀ A. A"),
     ("Bool -> (∀ X. ∀ Y. X)", "Bool -> (∀ Z. ∀ X. Z)"),
-    ("∀ X. ∀ Y. ∀ Z. (Y, Y) -> Z", "∀ A. ∀ A. ∀ C. (A, A) -> C"),
+    ("∀ X. ∀ Y. ∀ Z. (Y * Y) -> Z", "∀ A. ∀ A. ∀ C. (A * A) -> C"),
     ("∀ X. ∀ X. ∀ X. X -> X", "∀ A. ∀ B. ∀ C. C -> C"),
 ];
 
@@ -34,29 +34,26 @@ const BINOPS: &[(&str, &str)] = &[
 
 /// Pairs of (any, type) strings
 const ANYS: &[(&str, &str)] = &[
+    ("any A. λ (x: A) (y: A) :A . x", "forall B. B -> B -> B"),
     (
-        "any A. lambda x: A. lambda y: A. x",
-        "forall B. B -> B -> B",
+        "any X. λ (x: X * X): (X * X) * (X * X). (x, x)",
+        "forall Y. Y * Y -> ((Y * Y) * (Y * Y))",
     ),
     (
-        "any X. lambda x: (X, X). (x, x)",
-        "forall Y. (Y, Y) -> ((Y, Y), (Y, Y))",
+        "any X. λ (x1: Int) (x2: Int) :Int * Int. (x1, x2)",
+        "forall B. Int -> Int -> (Int * Int)",
     ),
     (
-        "any X. lambda x1: Int. lambda x2: Int. (x1, x2)",
-        "forall B. Int -> Int -> (Int, Int)",
-    ),
-    (
-        "(any X. any Y. lambda y: Y. y) [Int] [Bool]",
+        "(any X. Λ Y. λ (y: Y) :Y . y) [Int] [Bool]",
         "Bool -> Bool",
     ),
 ];
 
-/// Pairs of (lambda, type) strings
+/// Pairs of (λ, type) strings
 const LAMBDAS: &[(&str, &str)] = &[
-    ("lambda _: Int. 0", "Int -> Int"),
+    ("λ (a: Int) :Int . 0", "Int -> Int"),
     (
-        "lambda x: Int. lambda y: Int. (x - y) * (x + y)",
+        "λ (x: Int) (y: Int) :Int . (x - y) * (x + y)",
         "Int -> Int -> Int",
     ),
 ];
@@ -64,10 +61,10 @@ const LAMBDAS: &[(&str, &str)] = &[
 /// Pairs of (tuple, type) strings
 const TUPLES: &[(&str, &str)] = &[
     (
-        "(lambda x: Int. x + 1, lambda x: Bool. if x then 1 else 0)",
-        "((Int -> Int), (Bool -> Int))",
+        "(λ (x: Int) :Int . x + 1, λ (x: Bool) :Int . if x then 1 else 0)",
+        "(Int -> Int) * (Bool -> Int)",
     ),
-    ("(69, any A. lambda a: A. a)", "(Int, (forall A. A -> A))"),
+    ("(69, Λ A. λ (a: A) :A . a)", "Int * (forall A. A -> A)"),
 ];
 
 /// Negative tests form binary expressions
@@ -79,8 +76,8 @@ const BINOP_NEG: &[&str] = &[
 ];
 
 const LAMBDA_NEG: &[&str] = &[
-    "lambda x: Int. lambda x: Int. y",
-    "lambda x: Int. lambda (y: Bool, (z: Unit, y: Int)). y",
+    "λ (x: Int) (x: Int) :Int . y",
+    "λ (x: Int) (y: Bool) (y: Int) :Int . y",
 ];
 
 const LET_NEG: &[&str] = &[
