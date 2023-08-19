@@ -7,6 +7,7 @@ edition = "2021"
 lalrpop = { version = "0.20.0", default-features = false }
 
 [dependencies]
+anyhow = "1.0.75"
 logos = "0.13.0"
 logos-derive = "0.13.0"
 lalrpop-util = "0.20.0"

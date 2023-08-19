@@ -177,6 +177,19 @@ impl DerefMut for Type {
     }
 }
 
+impl Deref for Pattern {
+    type Target = RawPattern;
+    fn deref(&self) -> &Self::Target {
+        &self.pat
+    }
+}
+
+impl DerefMut for Pattern {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.pat
+    }
+}
+
 impl Prog {
     pub fn new() -> Prog {
         Prog {
