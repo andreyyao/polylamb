@@ -107,10 +107,19 @@ ValExprLet: Expr = {
 
 // Lambda and any. Expression body extends as far as possible
 ValExpr2: Expr = {
-    <l: @L> "lambda" <a: Argument+> ":" <t: TypExpr> "." <e: ValExpr> <r: @R> =>
-    	Expr {
-    	    expr: RawExpr::Lambda{ args: a, body: Box::new(e), ret_typ: t },
-    	    span: Some((l, r))
+    <l: @L> "lambda" <v: EIdent> ":" <t: TypExpr> "." <e: ValExpr> <r: @R> => Expr {
+            expr: RawExpr::Lambda{ arg: (v, t), body: Box::new(e) },
+	    span: Some((l, r))
+        },
+    <l: @L> "lambda" <args: Argument*> <last: Argument> "." <e: ValExpr> <r: @R> => {
+    	    let inner = Expr {
+    	    	 expr: RawExpr::Lambda{ arg: last, body: Box::new(e) },
+    	    	 span: Some((l, r))
+    	    };
+	    args.iter().rev().fold(inner, |acc, ele| Expr {
+                expr: RawExpr::Lambda{ arg: ele.clone(), body: Box::new(acc) },
+                span: Some((l, r))
+            })
 	},
     <l: @L> "any" <ids: TIdent+> "." <e: ValExpr> <r: @R> => {
             let initial = Expr {

@@ -67,11 +67,10 @@ pub enum RawExpr {
         op: Binary,
         rhs: Box<Expr>,
     },
-    /// Functions, ex. `lambda (x: Int): Int. x + 1
+    /// Functions, ex. `lambda (x: Int). x + 1
     Lambda {
-        args: Vec<(Ident, Type)>,
-        body: Box<Expr>,
-        ret_typ: Type,
+        arg: (Ident, Type),
+        body: Box<Expr>
     },
     /// Type abstractions, ex. `any X. (lambda (x: X). x)`
     Any { arg: Ident, body: Box<Expr> },
@@ -323,23 +322,14 @@ impl Display for RawExpr {
                 }
                 write!(f, ")")
             }
-            // RawExpr::Match { exp: _, clause: _ } => {
-            // 	panic!("TODO")
-            // },
             RawExpr::Binop { lhs, op, rhs } => {
                 write!(f, "({lhs}) {op} ({rhs})")
             }
             RawExpr::Lambda {
-                args,
-                body,
-                ret_typ,
+                arg: (v, t),
+                body
             } => {
-                write!(f, "λ ")?;
-                for arg in args {
-                    let (id, typ) = arg;
-                    write!(f, "({id}: {typ})")?
-                }
-                write!(f, ": {ret_typ}. {body}")
+                write!(f, "λ {v}: {t}. {body}")
             }
             RawExpr::Any { arg, body } => {
                 write!(f, "Λ {arg}. {body}")

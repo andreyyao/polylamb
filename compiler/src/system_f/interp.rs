@@ -86,9 +86,8 @@ pub fn eval(env: &mut Persist<Environment>, expr: &RawExpr) -> Result<RawExpr> {
             let func = eval(env, exp)?;
             match func {
                 Lambda {
-                    args,
-                    body,
-                    ret_typ,
+                    arg,
+                    body
                 } => {
                     todo!()
                 }
@@ -194,9 +193,8 @@ fn substitute_expr(exp: RawExpr, var: &str, val: &RawExpr) -> RawExpr {
         RawExpr::Tuple { entries } => todo!(),
         RawExpr::Binop { lhs, op, rhs } => todo!(),
         RawExpr::Lambda {
-            args,
-            body,
-            ret_typ,
+            arg,
+            body
         } => todo!(),
         RawExpr::Any { arg, body } => todo!(),
         RawExpr::If {
