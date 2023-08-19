@@ -1,30 +1,30 @@
 /// General purpose persistent structure with levels
 pub struct Persist<T: Clone> {
     /// snapshots
-    versions: Vec<T>,
+    snapshots: Vec<T>,
 }
 
 impl<T: Clone> Persist<T> {
     /// Empty context
     pub fn new(content: T) -> Persist<T> {
         Persist {
-            versions: vec![content],
+            snapshots: vec![content],
         }
     }
 
     /// Mutable reference to current version
     pub fn current(&mut self) -> &mut T {
-        self.versions.last_mut().unwrap()
+        self.snapshots.last_mut().unwrap()
     }
 
     /// Enters a new version
     pub fn enter(&mut self) {
-        self.versions.push(self.versions.last().unwrap().clone());
+        self.snapshots.push(self.snapshots.last().unwrap().clone());
     }
 
     /// Exits from current version and reverts to prior version
     pub fn exeunt(&mut self) {
-        self.versions.pop();
+        self.snapshots.pop();
     }
 }
 

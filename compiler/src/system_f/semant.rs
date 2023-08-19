@@ -173,11 +173,8 @@ pub fn check_expr<'ast>(
                 }
             }
         }
-        Lambda {
-            arg,
-            body
-        } => {
-	    let (id, typ) = arg;
+        Lambda { arg, body } => {
+            let (id, typ) = arg;
             let bound = val_ctxt
                 .current()
                 .insert(&id.name, (typ.typ.clone(), id.span.unwrap()));
@@ -199,8 +196,8 @@ pub fn check_expr<'ast>(
                     ],
                 });
             }
-	    let body_typ = check_expr(body, val_ctxt, typ_vars)?;
-	    Ok(Arrow(Box::new(typ.clone()), Box::new(Type::new(body_typ))))
+            let body_typ = check_expr(body, val_ctxt, typ_vars)?;
+            Ok(Arrow(Box::new(typ.clone()), Box::new(Type::new(body_typ))))
         }
         Any { arg, body } => {
             typ_vars.current().insert(&arg.name);

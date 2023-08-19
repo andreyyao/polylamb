@@ -12,3 +12,6 @@ logos = "0.13.0"
 logos-derive = "0.13.0"
 lalrpop-util = "0.20.0"
 annotate-snippets = { version = "0.9.1", features = ["color"] }
+
+[profile.dev]
+overflow-checks = false

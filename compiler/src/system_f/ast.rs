@@ -68,10 +68,7 @@ pub enum RawExpr {
         rhs: Box<Expr>,
     },
     /// Functions, ex. `lambda (x: Int). x + 1
-    Lambda {
-        arg: (Ident, Type),
-        body: Box<Expr>
-    },
+    Lambda { arg: (Ident, Type), body: Box<Expr> },
     /// Type abstractions, ex. `any X. (lambda (x: X). x)`
     Any { arg: Ident, body: Box<Expr> },
     /// if [cond] then [t] else [f]
@@ -325,10 +322,7 @@ impl Display for RawExpr {
             RawExpr::Binop { lhs, op, rhs } => {
                 write!(f, "({lhs}) {op} ({rhs})")
             }
-            RawExpr::Lambda {
-                arg: (v, t),
-                body
-            } => {
+            RawExpr::Lambda { arg: (v, t), body } => {
                 write!(f, "λ {v}: {t}. {body}")
             }
             RawExpr::Any { arg, body } => {
@@ -374,16 +368,7 @@ impl Display for RawPattern {
 impl Display for Constant {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Constant::Integer(i) => {
-                if i == &i64::MIN {
-                    write!(f, "~9223372036854775808")
-                } else if i < &0 {
-                    let i1 = -i;
-                    write!(f, "~{i1}")
-                } else {
-                    write!(f, "{i}")
-                }
-            }
+            Constant::Integer(i) => write!(f, "{i}"),
             Constant::Boolean(b) => write!(f, "{b}"),
             Constant::Null => write!(f, "null"),
         }

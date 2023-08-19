@@ -1,13 +1,13 @@
 use compiler::system_f::ast::{RawExpr, RawType};
 use compiler::system_f::parse::{parse_decl, parse_expr, parse_type};
 
-const LITERALS: [&str; 8] = ["1", "~123", "true", "false", "null", "1048576", "0", "~0"];
+const LITERALS: &[&str] = &["1", "-123", "true", "false", "null", "1048576", "0", "-0"];
 
 // There are no types in the AST until type checking
-const BINOPS: [&str; 10] = [
+const BINOPS: &[&str] = &[
     "a + a",
     "a * true",
-    "111 - ~100",
+    "111 - -100",
     "c1 && (c2 || c3)",
     "3 * (x - 1)",
     "a + b && c * d || e - f",
@@ -17,7 +17,7 @@ const BINOPS: [&str; 10] = [
     "true * (lambda (x:A) (y:B) (z: C). y)",
 ];
 
-const IFS: [&str; 6] = [
+const IFS: &[&str] = &[
     "if b then 1 else 3",
     "if 120937 then x + y + z else (lambda (x: Bool). not x)",
     "if b then b else if b then b else b",
@@ -26,13 +26,13 @@ const IFS: [&str; 6] = [
     "if (0,0,9999 + 8,9) then hehehehe else (not 1 + 2)",
 ];
 
-const DECLS: [&str; 3] = [
+const DECLS: &[&str] = &[
     "let x: Int = 1",
-    "let xx: Hehe_2_w = (true && false + ~1048)",
+    "let xx: Hehe_2_w = (true && false + -1048)",
     "let xx: Bool = y",
 ];
 
-const TYPE_VARS: [&str; 10] = [
+const TYPE_VARS: &[&str] = &[
     "A",
     "B",
     "Z",
@@ -94,5 +94,17 @@ fn check_types() {
 fn check_decls() {
     for s in DECLS {
         assert_matches!(parse_decl(s), Result::Ok(..))
+    }
+}
+
+// Check pretty-printing emits the same AST when parsed back
+#[test]
+fn check_pretty_print() {
+    for s in LITERALS.iter().chain(BINOPS).chain(IFS) {
+	let first_parse = raw_expr_of(s);
+	let first_print = first_parse.to_string();
+	let second_parse = raw_expr_of(first_print.as_str());
+	let second_print = second_parse.to_string();
+	assert_eq!(first_print, second_print)
     }
 }

@@ -14,13 +14,9 @@ fn token_bool_lit<'a>(lex: &mut Lexer<'a, Token<'a>>) -> Result<bool, LexError> 
 
 /// Callback for int literal tokens
 fn token_int_lit<'a>(lex: &mut Lexer<'a, Token<'a>>) -> Result<i64, LexError> {
-    let slice = lex.slice();
-    let sign: usize = if slice.starts_with('~') { 1 } else { 0 };
-    let slice_abs = &slice[sign..];
-    let n_abs = slice_abs.parse::<i64>();
-    match n_abs {
+    match lex.slice().parse::<i64>() {
         // Arithmetic magic to encode the negative sign
-        Result::Ok(i) => Ok(i * (1 - 2 * (sign as i64))),
+        Result::Ok(i) => Ok(i),
         Result::Err(_err) => Err(lex.span().start),
     }
 }
@@ -79,7 +75,7 @@ pub enum Token<'source> {
     TypId(&'source str),
 
     /// Integer literals
-    #[regex(r"\~?[0-9]+", token_int_lit)]
+    #[regex(r"-?[0-9]+", token_int_lit)]
     IntLit(i64),
 
     /// Bool literals

@@ -43,10 +43,7 @@ const ANYS: &[(&str, &str)] = &[
         "any X. λ (x1: Int) (x2: Int). (x1, x2)",
         "forall B. Int -> Int -> (Int * Int)",
     ),
-    (
-        "(any X. Λ Y. λ (y: Y). y) [Int] [Bool]",
-        "Bool -> Bool",
-    ),
+    ("(any X. Λ Y. λ (y: Y). y) [Int] [Bool]", "Bool -> Bool"),
 ];
 
 /// Pairs of (λ, type) strings
@@ -71,14 +68,11 @@ const TUPLES: &[(&str, &str)] = &[
 const BINOP_NEG: &[&str] = &[
     "2 + (if 3 then 4 else 5)",
     "2 + false",
-    "true && (if false then 1048576 else ~42069)",
+    "true && (if false then 1048576 else -42069)",
     "true - 3 == 1",
 ];
 
-const LAMBDA_NEG: &[&str] = &[
-    "λ (x: Int) (x: Int). y",
-    "λ (x: Int) (y: Bool) (y: Int). y",
-];
+const LAMBDA_NEG: &[&str] = &["λ (x: Int) (x: Int). y", "λ (x: Int) (y: Bool) (y: Int). y"];
 
 const LET_NEG: &[&str] = &[
     "let x: Int = 1 in x && true",

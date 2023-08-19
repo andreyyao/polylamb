@@ -107,6 +107,7 @@ ValExprLet: Expr = {
 
 // Lambda and any. Expression body extends as far as possible
 ValExpr2: Expr = {
+    // For the one-argument case, no parentheses are needed
     <l: @L> "lambda" <v: EIdent> ":" <t: TypExpr> "." <e: ValExpr> <r: @R> => Expr {
             expr: RawExpr::Lambda{ arg: (v, t), body: Box::new(e) },
 	    span: Some((l, r))
