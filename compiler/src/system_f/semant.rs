@@ -6,11 +6,11 @@ use crate::system_f::ast::{
     Binary, Constant, Decl, Expr, Ident, Pattern, Prog, RawExpr, RawPattern, RawType, Span, Type,
 };
 use crate::system_f::error::TypeError;
-use crate::util::persistent::{adventure, Persist};
+use crate::util::persistent::{adventure, Snapshot};
 use annotate_snippets::snippet::{AnnotationType, SourceAnnotation};
 
 /** Mapping of variable names to list of (type, binding site). Latest element is most recent */
-pub type Context<'a> = Persist<HashMap<&'a String, (RawType, Span)>>;
+pub type Context<'a> = Snapshot<HashMap<&'a String, (RawType, Span)>>;
 
 /** Type-checks the expression `expr`. `ctxt` is a map from expression variables to types.
 Returns: The raw type of the checked `expr`, or `TypeError`
@@ -22,7 +22,7 @@ Returns: The raw type of the checked `expr`, or `TypeError`
 pub fn check_expr<'ast>(
     expr: &'ast Expr,
     val_ctxt: &mut Context<'ast>,
-    typ_vars: &mut Persist<HashSet<&'ast String>>,
+    typ_vars: &mut Snapshot<HashSet<&'ast String>>,
 ) -> Result<RawType, TypeError> {
     use RawExpr::*;
     use RawType::*;
@@ -257,7 +257,7 @@ Returns: `Ok` if everything is fine, or `TypeError` otherwise.
 pub fn check_decl<'ast>(decl: &'ast Decl, val_ctxt: &mut Context<'ast>) -> Result<(), TypeError> {
     val_ctxt.enter();
     let typ_vars: HashSet<&'ast String> = HashSet::new();
-    let mut typ_vars_persist = Persist::new(typ_vars);
+    let mut typ_vars_persist = Snapshot::new(typ_vars);
     let check_result = check_expr(&decl.body, val_ctxt, &mut typ_vars_persist);
     val_ctxt.exeunt();
     match check_result {
@@ -299,8 +299,8 @@ pub fn check_prog<'ast>(prog: &'ast Prog) -> Result<(), TypeError> {
 
 // Check closed expression
 pub fn check_closed_expr(expr: &Expr) -> Result<RawType, TypeError> {
-    let mut ctxt = Persist::new(HashMap::new());
-    let mut tvars = Persist::new(HashSet::new());
+    let mut ctxt = Snapshot::new(HashMap::new());
+    let mut tvars = Snapshot::new(HashSet::new());
     check_expr(expr, &mut ctxt, &mut tvars)
 }
 
@@ -341,7 +341,7 @@ pub fn alpha_equiv(typ1: &RawType, typ2: &RawType) -> bool {
     fn alpha_equiv_help<'src>(
         typ1: &'src RawType,
         typ2: &'src RawType,
-        ctxt: &mut Persist<Env<'src>>,
+        ctxt: &mut Snapshot<Env<'src>>,
     ) -> bool {
         use RawType::*;
         match (typ1, typ2) {
@@ -384,7 +384,7 @@ pub fn alpha_equiv(typ1: &RawType, typ2: &RawType) -> bool {
         }
     }
     let env = Env::default();
-    alpha_equiv_help(typ1, typ2, &mut Persist::new(env))
+    alpha_equiv_help(typ1, typ2, &mut Snapshot::new(env))
 }
 
 /** Returns `Ok(t)`, where `t` is type for `pat`, when no duplicates,

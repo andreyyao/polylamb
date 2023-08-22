@@ -1,13 +1,13 @@
 /// General purpose persistent structure with levels
-pub struct Persist<T: Clone> {
+pub struct Snapshot<T: Clone> {
     /// snapshots
     snapshots: Vec<T>,
 }
 
-impl<T: Clone> Persist<T> {
+impl<T: Clone> Snapshot<T> {
     /// Empty context
-    pub fn new(content: T) -> Persist<T> {
-        Persist {
+    pub fn new(content: T) -> Snapshot<T> {
+        Snapshot {
             snapshots: vec![content],
         }
     }

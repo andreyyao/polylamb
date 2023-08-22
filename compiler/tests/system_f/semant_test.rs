@@ -62,6 +62,10 @@ const TUPLES: &[(&str, &str)] = &[
         "(Int -> Int) * (Bool -> Int)",
     ),
     ("(69, Λ A. λ (a: A). a)", "Int * (forall A. A -> A)"),
+    (
+	"(λ (x: Int). x + 1, λ (x: Bool). if x then 1 else 0)",
+	"(Int -> Int) * (Bool -> Int)"
+    )
 ];
 
 /// Negative tests form binary expressions

@@ -1,97 +1,55 @@
 use crate::system_f::ast::{Binary, Constant, Expr, RawExpr, RawPattern, RawType};
-use crate::util::persistent::{Persist, adventure};
+use crate::util::persistent::{adventure, Snapshot};
 /** Interpreting for the System F AST */
 use std::collections::HashMap;
 use std::fmt::Display;
 
 use anyhow::{anyhow, Result};
 
-const TYPE_ERR_MSG: &str =
-    "Type mismatch during interpretation. This shouldn't happen. Did you typecheck?";
-
-/** A struct representing the "store"s.
-`val_store` is mapping from variable names to its (value, type) pair
-`typ_store` maps type variable names to types */
-#[derive(Clone)]
-pub struct Environment {
-    val_store: HashMap<String, (RawExpr, RawType)>,
-    typ_store: HashMap<String, RawType>,
-}
-
-impl Display for Environment {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        for (k, (v, t)) in &self.val_store {
-            write!(f, "{k} : {t} := {v}\n")?
-        }
-        write!(f, "")
-    }
-}
-
-impl Environment {
-    fn get_val(&self, key: &str) -> Result<(&RawExpr, &RawType)> {
-        if let Some((v, t)) = self.val_store.get(key) {
-            Ok((&v, &t))
-        } else {
-            Err(anyhow!(format!("Undefined variable {key}.")))
-        }
-    }
-
-    fn new() -> Self {
-        Environment {
-            val_store: HashMap::new(),
-            typ_store: HashMap::new(),
-        }
-    }
-}
-
-/// Pattern matches `pat` recursively and binds to `exp`
-fn bind_pat(exp: &RawExpr, pat: &RawPattern, env: &mut Persist<Environment>) -> Result<()> {
-    match (exp, pat) {
-        (_, RawPattern::Wildcard(_)) => Ok(()),
-        (_, RawPattern::Binding(id, typ)) => {
-            let value = eval(env, exp)?;
-            env.current()
-                .val_store
-                .insert(id.to_string(), (value, typ.typ.clone()));
-            Ok(())
-        }
-        (RawExpr::Tuple { entries }, RawPattern::Tuple(patterns)) => {
-            // Since we type check beforehand, these two vectors must have the same length
-            for (e, p) in entries.iter().zip(patterns) {
-                bind_pat(&e, &p, env)?
-            }
-            Ok(())
-        }
-        _ => panic!("{}", TYPE_ERR_MSG),
-    }
-}
+use super::ast::{Decl, Prog};
 
 /** Evaluates `expr` under an empty environment */
-pub fn eval_expr(expr: &RawExpr) -> Result<RawExpr> {
-    let mut env = Persist::new(Environment::new());
+pub fn eval_expr(expr: &RawExpr) -> RawExpr {
+    let mut env = Snapshot::new(Environment::new());
     eval(&mut env, expr)
 }
 
-/** The evaluation function that returns the value of `expr` under the environment `env`,
- while potentially updating `env` with new bindings. */
-fn eval(env: &mut Persist<Environment>, expr: &RawExpr) -> Result<RawExpr> {
+pub fn eval_decl(decl: &Decl, env: &mut Snapshot<Environment>) -> Result<()> {
+    let body = eval(env, &decl.body.expr);
+    env.current()
+        .val_store
+        .insert(decl.id.clone(), (body, decl.sig.typ.clone()));
+    Ok(())
+}
+
+/** Evaluates program */
+pub fn eval_prog(prog: &Prog) -> Result<()> {
+    let mut env = Snapshot::new(Environment::new());
+    for id in &prog.order {
+        let decl = &prog.declarations[id];
+        eval_decl(decl, &mut env)?;
+    }
+    Ok(())
+}
+
+/** The evaluation function that returns the value of `expr` under the environment `env`, while potentially updating `env` with new bindings. */
+fn eval(env: &mut Snapshot<Environment>, expr: &RawExpr) -> RawExpr {
     use RawExpr::*;
     match &expr {
         // Constants being constants
-        Con { val: _ } => Ok(expr.clone()),
+        Con { val: _ } => expr.clone(),
         // Yeah, straight like dat
-        Var { id } => env.current().get_val(id).map(|pair| pair.0.clone()),
+        Var { id } => match env.current().get_val(id) {
+            Ok(p) => p.0.clone(),
+            Err(_) => Var { id: id.clone() },
+        },
         Let { pat, exp, body } => {
-            env.enter();
-            // Add the bindings produced by the pattern
-            bind_pat(exp, pat, env)?;
-            env.exeunt();
-            // Eval body with new bindings added
+            bind_pat(exp, pat, env);
             eval(env, body)
         }
         EApp { exp, arg } => {
-            let func = eval(env, exp)?;
-            let param = eval(env, arg)?;
+            let func = eval(env, exp);
+            let param = eval(env, arg);
             // lhs needs to be a value, which is a lambda expression by strength reduction
             match func {
                 Lambda {
@@ -102,22 +60,20 @@ fn eval(env: &mut Persist<Environment>, expr: &RawExpr) -> Result<RawExpr> {
                     env.current().val_store.insert(var.name, (param, typ.typ));
                     eval(env, &body.expr)
                 }
-                _ => Err(anyhow!(TYPE_ERR_MSG)),
+                _ => panic!("{}", TYPE_ERR_MSG),
             }
         }
         TApp { exp, arg } => {
-            if let Any { arg: t, body } = eval(env, exp)? {
+            if let Any { arg: t, body } = eval(env, exp) {
                 env.current().typ_store.insert(t.name, arg.typ.clone());
                 eval(env, &body.expr)
             } else {
-                Err(anyhow!(TYPE_ERR_MSG))
+                panic!("{}", TYPE_ERR_MSG)
             }
         }
         Tuple { entries } => {
-            let neu = Iterator::collect::<Result<Vec<_>>>(
-                entries.iter().map(|e| eval(env, e).map(|re| Expr::new(re))),
-            )?;
-            Ok(Tuple { entries: neu })
+            let neu = entries.iter().map(|e| Expr::new(eval(env, e))).collect();
+            Tuple { entries: neu }
         }
         Binop { lhs, op, rhs } => {
             use Binary::*;
@@ -125,10 +81,10 @@ fn eval(env: &mut Persist<Environment>, expr: &RawExpr) -> Result<RawExpr> {
             match op {
                 // Integer arguments
                 Add | Sub | Mul | Eq | Lt | Gt | Ne => {
-                    let lhs_nf = eval(env, lhs)?;
-                    let rhs_nf = eval(env, rhs)?;
-                    if let (Con { val: Integer(l) }, Con { val: Integer(r) }) = (lhs_nf, rhs_nf) {
-                        let res = match op {
+                    let lhs_nf = eval(env, lhs);
+                    let rhs_nf = eval(env, rhs);
+                    if let (Con { val: Integer(l) }, Con { val: Integer(r) }) = (&lhs_nf, &rhs_nf) {
+                        match op {
                             Add => Con {
                                 val: Integer(l + r),
                             },
@@ -152,17 +108,20 @@ fn eval(env: &mut Persist<Environment>, expr: &RawExpr) -> Result<RawExpr> {
                             },
                             // Unreachable
                             _ => panic!(),
-                        };
-                        Ok(res)
+                        }
                     } else {
-                        Err(anyhow!(TYPE_ERR_MSG))
+                        Binop {
+                            lhs: Box::new(Expr::new(lhs_nf)),
+                            op: op.clone(),
+                            rhs: Box::new(Expr::new(rhs_nf)),
+                        }
                     }
                 }
                 _ => {
-                    let lhs_nf = eval(env, lhs)?;
-                    let rhs_nf = eval(env, rhs)?;
-                    if let (Con { val: Boolean(l) }, Con { val: Boolean(r) }) = (lhs_nf, rhs_nf) {
-                        let res = match op {
+                    let lhs_nf = eval(env, lhs);
+                    let rhs_nf = eval(env, rhs);
+                    if let (Con { val: Boolean(l) }, Con { val: Boolean(r) }) = (&lhs_nf, &rhs_nf) {
+                        match op {
                             And => Con {
                                 val: Boolean(l & r),
                             },
@@ -170,26 +129,48 @@ fn eval(env: &mut Persist<Environment>, expr: &RawExpr) -> Result<RawExpr> {
                                 val: Boolean(l | r),
                             },
                             _ => panic!(),
-                        };
-                        Ok(res)
+                        }
                     } else {
-                        Err(anyhow!(TYPE_ERR_MSG))
+                        Binop {
+                            lhs: Box::new(Expr::new(lhs_nf)),
+                            op: op.clone(),
+                            rhs: Box::new(Expr::new(rhs_nf)),
+                        }
                     }
                 }
             }
         }
-        // For a reduced term, nothing happens
-        Lambda { .. } | Any { .. } => Ok(expr.clone()),
+        // For lambda, substitute body, except for variable that is abstracted
+        Lambda { arg, body } => {
+            env.enter();
+            env.current().val_store.remove(&arg.0.name);
+            let body_new = eval(env, body);
+            env.exeunt();
+            Lambda {
+                arg: arg.clone(),
+                body: Box::new(Expr::new(body_new)),
+            }
+        }
+        Any { arg, body } => {
+            env.enter();
+            env.current().typ_store.remove(&arg.name);
+            let body_new = eval(env, body);
+            env.exeunt();
+            Any {
+                arg: arg.clone(),
+                body: Box::new(Expr::new(body_new)),
+            }
+        }
         If {
             cond,
             branch_t,
             branch_f,
         } => {
-	    adventure!(cond_nf, eval(env, cond), env);
+            adventure!(cond_new, eval(env, cond), env);
             // If terminates, it should normalize to boolean constant
-            if let Ok(Con {
+            if let Con {
                 val: Constant::Boolean(b),
-            }) = cond_nf
+            } = cond_new
             {
                 if b {
                     eval(env, branch_t)
@@ -197,9 +178,37 @@ fn eval(env: &mut Persist<Environment>, expr: &RawExpr) -> Result<RawExpr> {
                     eval(env, branch_f)
                 }
             } else {
-                Err(anyhow!(TYPE_ERR_MSG))
+                adventure!(branch_t_new, eval(env, branch_t), env);
+                adventure!(branch_f_new, eval(env, branch_f), env);
+                If {
+                    cond: Box::new(Expr::new(cond_new)),
+                    branch_t: Box::new(Expr::new(branch_t_new)),
+                    branch_f: Box::new(Expr::new(branch_f_new)),
+                }
             }
         }
+    }
+}
+
+/// Pattern matches `pat` recursively and binds to `exp`
+fn bind_pat(exp: &RawExpr, pat: &RawPattern, env: &mut Snapshot<Environment>) {
+    match (exp, pat) {
+        (_, RawPattern::Wildcard(_)) => { },
+        (_, RawPattern::Binding(id, typ)) => {
+            env.enter();
+            let value = eval(env, exp);
+            env.exeunt();
+            env.current()
+                .val_store
+                .insert(id.to_string(), (value, typ.typ.clone()));
+        }
+        (RawExpr::Tuple { entries }, RawPattern::Tuple(patterns)) => {
+            // Since we type check beforehand, these two vectors must have the same length
+            for (e, p) in entries.iter().zip(patterns) {
+                bind_pat(&e, &p, env)
+            }
+        }
+        _ => panic!("{}", TYPE_ERR_MSG),
     }
 }
 
@@ -323,3 +332,41 @@ fn eval(env: &mut Persist<Environment>, expr: &RawExpr) -> Result<RawExpr> {
 // fn substitute_type(exp: RawExpr, var: &str, typ: &RawType) -> RawExpr {
 //     todo!()
 // }
+
+const TYPE_ERR_MSG: &str =
+    "Type mismatch during interpretation. This shouldn't happen. Did you typecheck?";
+
+/** A struct representing the "store"s.
+`val_store` is mapping from variable names to its (value, type) pair
+`typ_store` maps type variable names to types */
+#[derive(Clone)]
+pub struct Environment {
+    val_store: HashMap<String, (RawExpr, RawType)>,
+    typ_store: HashMap<String, RawType>,
+}
+
+impl Display for Environment {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for (k, (v, t)) in &self.val_store {
+            write!(f, "{k} : {t} := {v}\n")?
+        }
+        write!(f, "")
+    }
+}
+
+impl Environment {
+    fn get_val(&self, key: &str) -> Result<(&RawExpr, &RawType)> {
+        if let Some((v, t)) = self.val_store.get(key) {
+            Ok((&v, &t))
+        } else {
+            Err(anyhow!(format!("Undefined variable {key}.")))
+        }
+    }
+
+    fn new() -> Self {
+        Environment {
+            val_store: HashMap::new(),
+            typ_store: HashMap::new(),
+        }
+    }
+}
