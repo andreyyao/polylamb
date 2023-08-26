@@ -1,8 +1,8 @@
 use annotate_snippets::display_list::DisplayList;
 use annotate_snippets::snippet::Snippet;
-use compiler::system_f::ast::Expr;
-use compiler::system_f::parse::{parse_expr, parse_type};
-use compiler::system_f::semant::{alpha_equiv, check_closed_expr};
+use compiler::ast::ast::Expr;
+use compiler::ast::parse::{parse_expr, parse_type};
+use compiler::ast::semant::{alpha_equiv, check_closed_expr};
 
 const ALPHA_EQUIV_POSITIVE: &[(&str, &str)] = &[
     ("∀ A. A", "∀ B. B"),

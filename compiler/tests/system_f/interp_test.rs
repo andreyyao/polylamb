@@ -1,6 +1,6 @@
-use compiler::system_f::interp::eval_expr;
-use compiler::system_f::parse::parse_expr;
-use compiler::system_f::semant::check_closed_expr;
+use compiler::ast::interp::eval_expr;
+use compiler::ast::parse::parse_expr;
+use compiler::ast::semant::check_closed_expr;
 
 const ARITHMETIC: &[&str] = &[
     "1 + 3",
@@ -48,7 +48,7 @@ fn test_snippets() {
         println!("{}", expr_string);
         let exp = parse_expr(expr_string).unwrap();
         check_closed_expr(&exp).unwrap();
-        println!("{}", eval_expr(&exp.expr));
+        println!("{}", eval_closed_expr(&exp.expr));
         println!("---------------------------------------------")
     }
 }

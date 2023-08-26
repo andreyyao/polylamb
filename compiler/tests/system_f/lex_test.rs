@@ -1,4 +1,4 @@
-use compiler::system_f::lex::Token;
+use compiler::ast::lex::Token;
 use logos::Logos;
 
 /// Expects to see `token` when lexing `input`

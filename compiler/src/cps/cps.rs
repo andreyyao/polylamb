@@ -1,22 +1,22 @@
-use crate::system_f::ast;
+use crate::ast::ast;
 
-// type Id = String;
+type Id = String;
 
-// /// types
-// #[derive(Debug, PartialEq, Clone)]
-// pub enum Typ {
-//     Int,
-//     Bool,
-//     Unit,
-//     /* Type variable introduced by Forall types */
-//     TVar(Id),
-//     /* Product type */
-//     Prod(Vec<Typ>),
-//     /* Continuations, no return type */
-//     Cont(Box<Typ>),
-//     /* Universal types */
-//     Forall(Vec<Id>, Box<Typ>),
-// }
+/// types
+#[derive(Debug, PartialEq, Clone)]
+pub enum Typ {
+    Int,
+    Bool,
+    Unit,
+    /* Type variable introduced by Forall types */
+    TVar(Id),
+    /* Tuple types */
+    Prod(Vec<Typ>),
+    /* Continuations, no return type. Cont() */
+    Cont(Box<Typ>),
+    /* Universal types */
+    Forall(Vec<Id>, Box<Typ>),
+}
 
 // // Stuff like `x: int`
 // #[derive(Debug, PartialEq, Clone)]

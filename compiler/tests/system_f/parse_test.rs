@@ -1,5 +1,5 @@
-use compiler::system_f::ast::{RawExpr, RawType};
-use compiler::system_f::parse::{parse_decl, parse_expr, parse_type};
+use compiler::ast::ast::{RawExpr, RawType};
+use compiler::ast::parse::{parse_decl, parse_expr, parse_type};
 
 const LITERALS: &[&str] = &["1", "-123", "true", "false", "null", "1048576", "0", "-0"];
 

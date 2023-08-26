@@ -1,11 +1,12 @@
 use annotate_snippets::display_list::{DisplayList, FormatOptions};
 use annotate_snippets::snippet::{Annotation, Slice, Snippet};
-use compiler::system_f::parse::parse_prog;
-use compiler::system_f::semant::check_prog;
+use compiler::ast::parse::parse_prog;
+use compiler::ast::semant::check_prog;
 
 const SOURCE: &str = "tests/progs/simple.polylamb";
 
 fn main() {
+    let _ = compiler::ast::repl::repl();
     let program = std::fs::read_to_string(SOURCE).expect("Hmm");
     let prog = parse_prog(&program).unwrap();
     let result = check_prog(&prog);

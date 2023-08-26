@@ -1,4 +1,4 @@
-use crate::system_f::lex::Token;
+use crate::ast::lex::Token;
 use annotate_snippets::{
     display_list::FormatOptions,
     snippet::{Annotation, AnnotationType, Slice, Snippet, SourceAnnotation},

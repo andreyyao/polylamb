@@ -1,4 +1,4 @@
-use crate::system_f::ast::{Binary, Constant, Expr, RawExpr, RawPattern, RawType};
+use crate::ast::ast::{Binary, Constant, Expr, RawExpr, RawPattern, RawType};
 use crate::util::persistent::{adventure, Snapshot};
 /** Interpreting for the System F AST */
 use std::collections::HashMap;
@@ -9,11 +9,11 @@ use anyhow::{anyhow, Result};
 use super::ast::{Decl, Prog};
 
 /** Evaluates `expr` under an empty environment */
-pub fn eval_expr(expr: &RawExpr) -> RawExpr {
-    let mut env = Snapshot::new(Environment::new());
-    eval(&mut env, expr)
+pub fn eval_expr(expr: &RawExpr, env: &mut Snapshot<Environment>) -> RawExpr {
+    eval(env, expr)
 }
 
+/** Evaluates `decl` under current environment `env`, and add value to `env` */
 pub fn eval_decl(decl: &Decl, env: &mut Snapshot<Environment>) -> Result<()> {
     let body = eval(env, &decl.body.expr);
     env.current()
@@ -32,13 +32,18 @@ pub fn eval_prog(prog: &Prog) -> Result<()> {
     Ok(())
 }
 
+pub fn eval_closed_expr(expr: &RawExpr) -> RawExpr {
+    let mut env = Snapshot::new(Environment::new());
+    eval_expr(expr, &mut env)
+}
+
 /** The evaluation function that returns the value of `expr` under the environment `env`, while potentially updating `env` with new bindings. */
 fn eval(env: &mut Snapshot<Environment>, expr: &RawExpr) -> RawExpr {
     use RawExpr::*;
     match &expr {
         // Constants being constants
         Con { val: _ } => expr.clone(),
-        // Yeah, straight like dat
+        // Yeah
         Var { id } => match env.current().get_val(id) {
             Ok(p) => p.0.clone(),
             Err(_) => Var { id: id.clone() },
@@ -363,7 +368,7 @@ impl Environment {
         }
     }
 
-    fn new() -> Self {
+    pub fn new() -> Self {
         Environment {
             val_store: HashMap::new(),
             typ_store: HashMap::new(),

@@ -2,10 +2,10 @@
 
 use std::collections::{HashMap, HashSet};
 
-use crate::system_f::ast::{
+use crate::ast::ast::{
     Binary, Constant, Decl, Expr, Ident, Pattern, Prog, RawExpr, RawPattern, RawType, Span, Type,
 };
-use crate::system_f::error::TypeError;
+use crate::ast::error::TypeError;
 use crate::util::persistent::{adventure, Snapshot};
 use annotate_snippets::snippet::{AnnotationType, SourceAnnotation};
 

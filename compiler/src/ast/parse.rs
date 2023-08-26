@@ -1,8 +1,8 @@
-lalrpop_mod!(pub parser, "/system_f/parser.rs"); // synthesized by LALRPOP
+lalrpop_mod!(pub parser, "/ast/parser.rs"); // synthesized by LALRPOP
 use super::{ast, error::ParseError, lex::LexerWrap};
 
 pub mod utils {
-    use crate::system_f::ast::*;
+    use crate::ast::ast::*;
 
     pub fn make_binop(l: Expr, op: &str, r: Expr) -> RawExpr {
         RawExpr::Binop {

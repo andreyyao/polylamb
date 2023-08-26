@@ -1,4 +1,4 @@
-use crate::system_f::{ast, lex, error, parse::utils};
+use crate::ast::{ast, lex, error, parse::utils};
 use ast::{Prog, Decl, Expr, RawExpr, Type, RawType, Pattern, RawPattern, Ident};
 
 
