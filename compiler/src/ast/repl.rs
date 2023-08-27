@@ -19,7 +19,7 @@ pub fn repl() -> Result<()> {
         match &readline {
             Ok(input) => {
                 rl.add_history_entry(input.as_str())?;
-		if input.starts_with("#") {
+		if input.starts_with('#') {
 		    match input.as_str() {
 			"#help" => println!("{}", HELP_MESSAGE),
 			"#exit" => {

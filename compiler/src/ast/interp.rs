@@ -8,7 +8,7 @@ use anyhow::{anyhow, Result};
 
 use super::ast::{Decl, Prog};
 
-/** Evaluates `expr` under an empty environment */
+/** Evaluates `expr` under environment `env` */
 pub fn eval_expr(expr: &RawExpr, env: &mut Snapshot<Environment>) -> RawExpr {
     eval(env, expr)
 }
@@ -210,7 +210,7 @@ fn bind_pat(exp: &RawExpr, pat: &RawPattern, env: &mut Snapshot<Environment>) {
         (RawExpr::Tuple { entries }, RawPattern::Tuple(patterns)) => {
             // Since we type check beforehand, these two vectors must have the same length
             for (e, p) in entries.iter().zip(patterns) {
-                bind_pat(&e, &p, env)
+                bind_pat(e, p, env)
             }
         }
         _ => panic!("{}", TYPE_ERR_MSG),
@@ -353,7 +353,7 @@ pub struct Environment {
 impl Display for Environment {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for (k, (v, t)) in &self.val_store {
-            write!(f, "{k} : {t} := {v}\n")?
+            writeln!(f, "{k} : {t} := {v}")?
         }
         write!(f, "")
     }
@@ -362,7 +362,7 @@ impl Display for Environment {
 impl Environment {
     fn get_val(&self, key: &str) -> Result<(&RawExpr, &RawType)> {
         if let Some((v, t)) = self.val_store.get(key) {
-            Ok((&v, &t))
+            Ok((v, t))
         } else {
             Err(anyhow!(format!("Undefined variable {key}.")))
         }

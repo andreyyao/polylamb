@@ -195,6 +195,12 @@ impl Prog {
     }
 }
 
+impl Default for Prog {
+    fn default() -> Self {
+	Self::new()
+    }
+}
+
 impl RawType {
     /// Whether the typ expression is atomic(doesn't contain smaller types)
     pub fn is_atomic(&self) -> bool {

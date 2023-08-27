@@ -1,6 +1,6 @@
-use compiler::ast::interp::eval_expr;
-use compiler::ast::parse::parse_expr;
-use compiler::ast::semant::check_closed_expr;
+use polylamb::ast::interp::eval_closed_expr;
+use polylamb::ast::parse::parse_expr;
+use polylamb::ast::semant::check_closed_expr;
 
 const ARITHMETIC: &[&str] = &[
     "1 + 3",

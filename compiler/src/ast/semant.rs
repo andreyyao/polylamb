@@ -49,13 +49,10 @@ pub fn check_expr<'ast>(
             let exp_typ = match &pat.pat {
                 // Functions can refer to itself in body for recursion
                 RawPattern::Binding(ident, Type { typ, .. }) => {
-                    match &typ {
-                        Arrow(_, _) => {
+                    if let Arrow(_, _) = &typ {
                             val_ctxt
                                 .current()
                                 .insert(&ident.name, (typ.clone(), pat.span.unwrap()));
-                        }
-                        _ => (),
                     };
                     check_expr(exp, val_ctxt, typ_vars)?
                 }
@@ -79,8 +76,8 @@ pub fn check_expr<'ast>(
             }
         }
         EApp { exp, arg } => {
-            let exp_t = check_expr(&exp, val_ctxt, typ_vars)?;
-            let arg_t = check_expr(&arg, val_ctxt, typ_vars)?;
+            let exp_t = check_expr(exp, val_ctxt, typ_vars)?;
+            let arg_t = check_expr(arg, val_ctxt, typ_vars)?;
             match exp_t {
                 RawType::Arrow(t1, t2) => {
                     if alpha_equiv(&t1.typ, &arg_t) {
@@ -421,7 +418,7 @@ fn traverse_pat<'a>(
                 })
             } else {
                 ctxt.current()
-                    .insert(&ident.name, (typ.typ.clone(), ident.span.unwrap().clone()));
+                    .insert(&ident.name, (typ.typ.clone(), ident.span.unwrap()));
                 Ok(typ.typ.clone())
             }
         }
