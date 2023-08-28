@@ -3,8 +3,8 @@ use rustyline::{DefaultEditor, Result};
 
 use crate::util::persistent::Snapshot;
 
-use super::interp::eval_decl;
-use super::parse::parse_decl;
+use super::interp::{eval_decl, eval_expr};
+use super::parse::{parse_decl, parse_expr};
 
 pub fn repl() -> Result<()> {
     // `()` can be used when no completer is required
@@ -13,41 +13,51 @@ pub fn repl() -> Result<()> {
     if rl.load_history("history.txt").is_err() {
         println!("No previous history.");
     }
-    let mut env = Snapshot::default();
+    let mut store = Snapshot::default();
     loop {
         let readline = rl.readline("λ2 >> ");
         match &readline {
             Ok(input) => {
                 rl.add_history_entry(input.as_str())?;
-		if input.starts_with('#') {
-		    match input.as_str() {
-			"#help" => println!("{}", HELP_MESSAGE),
-			"#exit" => {
-			    println!("See ya!");
-			    break
-			},
-			"#context" => {
-			    println!("\n{}", env.current())
-			},
-			_ => println!("Unknown command")
-		    }
-		} else {
-		    let decl = parse_decl(input).unwrap();
-		    // TODO do proper error conversion
-		    eval_decl(&decl, &mut env);
-		}
-            },
+                if input.starts_with('#') {
+                    match input.as_str() {
+                        "#help" => println!("{}", HELP_MESSAGE),
+                        "#exit" => {
+                            println!("See ya!");
+                            break;
+                        }
+                        "#context" => {
+                            println!("\n{}", store.current())
+                        }
+                        _ => println!("Unknown command"),
+                    }
+                } else {
+                    match parse_decl(input) {
+                        Ok(decl) => match eval_decl(&decl, &mut store) {
+                            Ok(_) => (),
+                            Err(typ_err) => println!("{}", typ_err.title),
+                        },
+                        Err(_) => match parse_expr(input) {
+                            Ok(expr) => match eval_expr(&expr, &mut store) {
+                                Ok(v) => println!("\n{}\n", v),
+                                Err(typ_err) => println!("{}", typ_err.title), //TODO proper type error printing
+                            },
+                            Err(parse_err) => println!("{}", parse_err),
+                        },
+                    }
+                }
+            }
             Err(ReadlineError::Interrupted) => {
                 println!("Interrupted");
-                break
-            },
+                break;
+            }
             Err(ReadlineError::Eof) => {
                 println!("End of file");
-                break
-            },
+                break;
+            }
             Err(err) => {
                 println!("Error: {:?}", err);
-                break
+                break;
             }
         }
     }

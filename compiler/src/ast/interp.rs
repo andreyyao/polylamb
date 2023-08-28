@@ -6,14 +6,19 @@ use std::fmt::Display;
 
 use super::ast::{Decl, Prog};
 use super::error::TypeError;
+use super::semant::{check_decl, check_expr};
 
 /** Evaluates `expr` under `store` */
-pub fn eval_expr(expr: &RawExpr, store: &mut Snapshot<Store>) -> RawExpr {
-    eval(store, expr)
+pub fn eval_expr(expr: &Expr, store: &mut Snapshot<Store>) -> Result<RawExpr, TypeError> {
+    let mut ctxt = Snapshot::new(store.current().typ_store.clone());
+    check_expr(&expr, &mut ctxt, &mut Snapshot::default())?;
+    Ok(eval(store, expr))
 }
 
 /** Evaluates `decl` under current `store`, and add value to `store` */
 pub fn eval_decl(decl: &Decl, store: &mut Snapshot<Store>) -> Result<(), TypeError> {
+    let mut ctxt = Snapshot::new(store.current().typ_store.clone());
+    check_decl(decl, &mut ctxt)?;
     let body = eval(store, &decl.body.expr);
     let curr = store.current();
     curr.val_store.insert(decl.id.clone(), body);
@@ -31,9 +36,9 @@ pub fn eval_prog(prog: &Prog) -> Result<(), TypeError> {
     Ok(())
 }
 
-pub fn eval_closed_expr(expr: &RawExpr) -> RawExpr {
+pub fn eval_closed_expr(expr: &Expr) -> RawExpr {
     let mut store = Snapshot::default();
-    eval_expr(expr, &mut store)
+    eval_expr(expr, &mut store).unwrap()
 }
 
 /** The evaluation function that returns the value of `expr` under the store `store`, while potentially updating `store` with new bindings. */
@@ -61,12 +66,15 @@ fn eval(store: &mut Snapshot<Store>, expr: &RawExpr) -> RawExpr {
                     body,
                 } => {
                     //Update the store
-		    let curr = store.current();
+                    let curr = store.current();
                     curr.val_store.insert(var.name.clone(), param);
-		    curr.typ_store.insert(var.name, typ.typ);
+                    curr.typ_store.insert(var.name, typ.typ);
                     eval(store, &body.expr)
                 }
-                _ => panic!("{}", TYPE_ERR_MSG),
+                _ => EApp {
+                    exp: Box::new(Expr::new(func)),
+                    arg: Box::new(Expr::new(param)),
+                },
             }
         }
         TApp { exp, arg } => {
@@ -205,8 +213,8 @@ fn bind_pat(exp: &RawExpr, pat: &RawPattern, store: &mut Snapshot<Store>) {
             let value = eval(store, exp);
             store.exeunt();
             let curr = store.current();
-	    curr.val_store.insert(id.to_string(), value);
-	    curr.typ_store.insert(id.to_string(), typ.typ.clone());
+            curr.val_store.insert(id.to_string(), value);
+            curr.typ_store.insert(id.to_string(), typ.typ.clone());
         }
         (RawExpr::Tuple { entries }, RawPattern::Tuple(patterns)) => {
             // Since we type check beforehand, these two vectors must have the same length
@@ -354,7 +362,7 @@ pub struct Store {
 impl Display for Store {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for (k, v) in &self.val_store {
-	    let t = &self.typ_store[k];
+            let t = &self.typ_store[k];
             writeln!(f, "{k} : {t} := {v}")?
         }
         write!(f, "")

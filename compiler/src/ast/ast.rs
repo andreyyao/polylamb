@@ -1,6 +1,7 @@
 /*! The definition for the System F AST structure,
 as well as some utility functions related to it. */
 
+use colored::*;
 use std::{
     collections::HashMap,
     fmt,
@@ -197,7 +198,7 @@ impl Prog {
 
 impl Default for Prog {
     fn default() -> Self {
-	Self::new()
+        Self::new()
     }
 }
 
@@ -211,7 +212,8 @@ impl RawType {
 
 impl RawExpr {
     pub fn is_atomic(&self) -> bool {
-        false
+        use RawExpr::*;
+        matches!(self, Con { .. } | Var { .. } | Tuple { .. })
     }
 }
 
@@ -265,9 +267,9 @@ impl Display for RawType {
         }
 
         match self {
-            RawType::Int => write!(f, "Int"),
-            RawType::Bool => write!(f, "Bool"),
-            RawType::Unit => write!(f, "Unit"),
+            RawType::Int => write!(f, "{}", "Int".blue()),
+            RawType::Bool => write!(f, "{}", "Bool".blue()),
+            RawType::Unit => write!(f, "{}", "Unit".blue()),
             RawType::Prod(typs) => {
                 write!(f, "(")?;
                 for (i, t) in typs.iter().enumerate() {
@@ -310,11 +312,11 @@ impl Display for RawExpr {
         }
 
         match self {
-            RawExpr::Con { val } => write!(f, "{val}"),
-            RawExpr::Var { id } => write!(f, "{id}"),
-            RawExpr::Let { pat, exp, body } => write!(f, "{pat} = {exp} in {body}"),
-            RawExpr::EApp { exp, arg } => write!(f, "{exp} {arg}"),
-            RawExpr::TApp { exp, arg } => write!(f, "{exp}[{arg}]"),
+            RawExpr::Con { val } => write!(f, "{}", val.to_string().yellow()),
+            RawExpr::Var { id } => write!(f, "{}", id.to_string().red()),
+            RawExpr::Let { pat, exp, body } => write!(f, "let {pat} = {exp} in {body}"),
+            RawExpr::EApp { exp, arg } => write!(f, "({exp} {arg})"),
+            RawExpr::TApp { exp, arg } => write!(f, "({exp}[{arg}])"),
             RawExpr::Tuple { entries } => {
                 write!(f, "(")?;
                 for (i, t) in entries.iter().enumerate() {

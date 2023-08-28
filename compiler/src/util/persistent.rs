@@ -5,9 +5,10 @@ pub struct Snapshot<T: Clone + Default> {
 }
 
 impl<T: Clone + Default> Snapshot<T> {
-
     pub fn new(initial: T) -> Self {
-	Snapshot { snapshots: vec![initial] }
+        Snapshot {
+            snapshots: vec![initial],
+        }
     }
 
     /// Mutable reference to current version

@@ -12,12 +12,11 @@ use annotate_snippets::snippet::{AnnotationType, SourceAnnotation};
 /** Mapping of variable names to types. Latest element is most recent */
 pub type Context = Snapshot<HashMap<String, RawType>>;
 
-/** Type-checks the expression `expr`. `ctxt` is a map from expression variables to types.
+/** Type-checks the expression `expr`.
 Returns: The raw type of the checked `expr`, or `TypeError`
 # Arguments
  * `expr`: The expression to check
- * `val_ctxt`: Persistent mapping from variable names to (raw type, span).
- Invariance: each value in map, if exists, has length at least 1
+ * `val_ctxt`: Snapshots of mapping from variable names to raw type.
  * `typ_vars`: Set of declared type variables */
 pub fn check_expr(
     expr: &Expr,
@@ -50,9 +49,7 @@ pub fn check_expr(
                 // Functions can refer to itself in body for recursion
                 RawPattern::Binding(ident, Type { typ, .. }) => {
                     if let Arrow(_, _) = &typ {
-                            val_ctxt
-                                .current()
-                                .insert(ident.name.clone(), typ.clone());
+                        val_ctxt.current().insert(ident.name.clone(), typ.clone());
                     };
                     check_expr(exp, val_ctxt, typ_vars)?
                 }
@@ -172,20 +169,16 @@ pub fn check_expr(
         }
         Lambda { arg, body } => {
             let (id, typ) = arg;
-            let bound = val_ctxt
-                .current()
-                .insert(id.name.clone(), typ.typ.clone());
+            let bound = val_ctxt.current().insert(id.name.clone(), typ.typ.clone());
             if bound.is_some() {
                 return Err(TypeError {
                     title: "Redefinition of variables",
                     annot_type: AnnotationType::Error,
-                    annotations: vec![
-                        SourceAnnotation {
-                            range: id.span.unwrap(),
-                            label: "attempting to declare a bound variable",
-                            annotation_type: AnnotationType::Error,
-                        }
-                    ],
+                    annotations: vec![SourceAnnotation {
+                        range: id.span.unwrap(),
+                        label: "attempting to declare a bound variable",
+                        annotation_type: AnnotationType::Error,
+                    }],
                 });
             }
             let body_typ = check_expr(body, val_ctxt, typ_vars)?;
@@ -254,9 +247,7 @@ pub fn check_decl<'ast>(decl: &'ast Decl, val_ctxt: &mut Context) -> Result<(), 
     match check_result {
         Ok(typ) => {
             if alpha_equiv(&typ, &decl.sig.typ) {
-                val_ctxt
-                    .current()
-                    .insert(decl.id.clone(), typ);
+                val_ctxt.current().insert(decl.id.clone(), typ);
                 Ok(())
             } else {
                 Err(TypeError {
@@ -395,17 +386,14 @@ fn traverse_pat(
                 Err(TypeError {
                     title: "Conflicting argument names",
                     annot_type: AnnotationType::Error,
-                    annotations: vec![
-                        SourceAnnotation {
-                            range: pat.span.unwrap(),
-                            label: "variable bound multiple times in pattern",
-                            annotation_type: AnnotationType::Error,
-                        }
-                    ],
+                    annotations: vec![SourceAnnotation {
+                        range: pat.span.unwrap(),
+                        label: "variable bound multiple times in pattern",
+                        annotation_type: AnnotationType::Error,
+                    }],
                 })
             } else {
-                ctxt.current()
-                    .insert(ident.name.clone(), typ.typ.clone());
+                ctxt.current().insert(ident.name.clone(), typ.typ.clone());
                 Ok(typ.typ.clone())
             }
         }

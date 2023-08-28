@@ -30,7 +30,7 @@ const BOOLEAN: &[&str] = &[
     "100 > 101",
 ];
 
-const LAMBDAS: &[&str] = &[
+const LAMBDA: &[&str] = &[
     "(λ (x: Bool). if x then 1 else 0)",
     "(λ x: Int. x + 1) 2",
     "(λ x: Int. λ y: Int. x + y) 10 5",
@@ -41,14 +41,18 @@ const LAMBDAS: &[&str] = &[
           if y && (z x) then x else 0 - x",
 ];
 
+const ANY: &[&str] = &[
+    "any T. λ g: T -> T. λ h: T. g (g h)"
+];
+
 #[test]
 fn test_snippets() {
-    let everything = ARITHMETIC.iter().chain(BOOLEAN).chain(LAMBDAS);
+    let everything = ARITHMETIC.iter().chain(BOOLEAN).chain(LAMBDA).chain(ANY);
     for expr_string in everything {
         println!("{}", expr_string);
         let exp = parse_expr(expr_string).unwrap();
         check_closed_expr(&exp).unwrap();
-        println!("{}", eval_closed_expr(&exp.expr));
+        println!("{}", eval_closed_expr(&exp));
         println!("---------------------------------------------")
     }
 }
