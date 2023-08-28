@@ -3,14 +3,14 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::ast::ast::{
-    Binary, Constant, Decl, Expr, Ident, Pattern, Prog, RawExpr, RawPattern, RawType, Span, Type,
+    Binary, Constant, Decl, Expr, Ident, Pattern, Prog, RawExpr, RawPattern, RawType, Type,
 };
 use crate::ast::error::TypeError;
 use crate::util::persistent::{adventure, Snapshot};
 use annotate_snippets::snippet::{AnnotationType, SourceAnnotation};
 
-/** Mapping of variable names to list of (type, binding site). Latest element is most recent */
-pub type Context<'a> = Snapshot<HashMap<&'a str, (RawType, Span)>>;
+/** Mapping of variable names to types. Latest element is most recent */
+pub type Context = Snapshot<HashMap<String, RawType>>;
 
 /** Type-checks the expression `expr`. `ctxt` is a map from expression variables to types.
 Returns: The raw type of the checked `expr`, or `TypeError`
@@ -19,10 +19,10 @@ Returns: The raw type of the checked `expr`, or `TypeError`
  * `val_ctxt`: Persistent mapping from variable names to (raw type, span).
  Invariance: each value in map, if exists, has length at least 1
  * `typ_vars`: Set of declared type variables */
-pub fn check_expr<'ast>(
-    expr: &'ast Expr,
-    val_ctxt: &mut Context<'ast>,
-    typ_vars: &mut Snapshot<HashSet<&'ast str>>,
+pub fn check_expr(
+    expr: &Expr,
+    val_ctxt: &mut Context,
+    typ_vars: &mut Snapshot<HashSet<String>>,
 ) -> Result<RawType, TypeError> {
     use RawExpr::*;
     use RawType::*;
@@ -33,7 +33,7 @@ pub fn check_expr<'ast>(
             Constant::Null => Ok(Unit),
         },
         Var { id } => match val_ctxt.current().get(id.as_str()) {
-            Some((typ, _)) => Ok(typ.clone()),
+            Some(typ) => Ok(typ.clone()),
             None => Err(TypeError {
                 title: "Unbound variable",
                 annot_type: AnnotationType::Error,
@@ -52,14 +52,14 @@ pub fn check_expr<'ast>(
                     if let Arrow(_, _) = &typ {
                             val_ctxt
                                 .current()
-                                .insert(&ident.name, (typ.clone(), pat.span.unwrap()));
+                                .insert(ident.name.clone(), typ.clone());
                     };
                     check_expr(exp, val_ctxt, typ_vars)?
                 }
                 _ => check_expr(exp, val_ctxt, typ_vars)?,
             };
             val_ctxt.exeunt();
-            let mut vars: HashSet<&'ast String> = HashSet::new();
+            let mut vars: HashSet<String> = HashSet::new();
             let pat_typ = traverse_pat(pat, &mut vars, val_ctxt)?;
             if alpha_equiv(&exp_typ, &pat_typ) {
                 check_expr(body, val_ctxt, typ_vars)
@@ -174,7 +174,7 @@ pub fn check_expr<'ast>(
             let (id, typ) = arg;
             let bound = val_ctxt
                 .current()
-                .insert(&id.name, (typ.typ.clone(), id.span.unwrap()));
+                .insert(id.name.clone(), typ.typ.clone());
             if bound.is_some() {
                 return Err(TypeError {
                     title: "Redefinition of variables",
@@ -184,12 +184,7 @@ pub fn check_expr<'ast>(
                             range: id.span.unwrap(),
                             label: "attempting to declare a bound variable",
                             annotation_type: AnnotationType::Error,
-                        },
-                        SourceAnnotation {
-                            range: val_ctxt.current().get(id.name.as_str()).unwrap().1,
-                            label: "it has already been defined here",
-                            annotation_type: AnnotationType::Help,
-                        },
+                        }
                     ],
                 });
             }
@@ -197,7 +192,7 @@ pub fn check_expr<'ast>(
             Ok(Arrow(Box::new(typ.clone()), Box::new(Type::new(body_typ))))
         }
         Any { arg, body } => {
-            typ_vars.current().insert(&arg.name);
+            typ_vars.current().insert(arg.name.clone());
             let typ = check_expr(body, val_ctxt, typ_vars)?;
             let poly_copy = Ident {
                 name: arg.name.clone(),
@@ -250,8 +245,8 @@ If the checked type of the `decl` body matches the `decl` signature, then this a
 Returns: `Ok` if everything is fine, or `TypeError` otherwise.
 # Arguments
  * `decl`: The declaration to check
- * `val_ctxt`: Persistent mapping from variable names to (raw type, span) */
-pub fn check_decl<'ast>(decl: &'ast Decl, val_ctxt: &mut Context<'ast>) -> Result<(), TypeError> {
+ * `val_ctxt`: Persistent mapping from variable names to raw type */
+pub fn check_decl<'ast>(decl: &'ast Decl, val_ctxt: &mut Context) -> Result<(), TypeError> {
     val_ctxt.enter();
     let mut typ_vars_persist = Snapshot::default();
     let check_result = check_expr(&decl.body, val_ctxt, &mut typ_vars_persist);
@@ -261,7 +256,7 @@ pub fn check_decl<'ast>(decl: &'ast Decl, val_ctxt: &mut Context<'ast>) -> Resul
             if alpha_equiv(&typ, &decl.sig.typ) {
                 val_ctxt
                     .current()
-                    .insert(&decl.id, (typ, decl.sig.span.unwrap()));
+                    .insert(decl.id.clone(), typ);
                 Ok(())
             } else {
                 Err(TypeError {
@@ -316,7 +311,7 @@ fn substitute(tvar: &String, target: &RawType, typ: &mut RawType) {
             substitute(tvar, target, v);
             substitute(tvar, target, t);
         }
-        Forall(v, t) if &v.name == tvar => substitute(tvar, target, t),
+        Forall(v, t) if &v.name != tvar => substitute(tvar, target, t),
         _ => {}
     }
 }
@@ -388,14 +383,14 @@ Adds binding to `ctxt` along the way
  * `pat`: The pattern to check
  * `vars`: Set of vars already seen in `pat`
  * `ctxt`: The typing Context */
-fn traverse_pat<'a>(
-    pat: &'a Pattern,
-    vars: &mut HashSet<&'a String>,
-    ctxt: &mut Context<'a>,
+fn traverse_pat(
+    pat: &Pattern,
+    vars: &mut HashSet<String>,
+    ctxt: &mut Context,
 ) -> Result<RawType, TypeError> {
     match &pat.pat {
         RawPattern::Binding(ident, typ) => {
-            let seen = !vars.insert(&ident.name);
+            let seen = !vars.insert(ident.name.clone());
             if seen {
                 Err(TypeError {
                     title: "Conflicting argument names",
@@ -405,17 +400,12 @@ fn traverse_pat<'a>(
                             range: pat.span.unwrap(),
                             label: "variable bound multiple times in pattern",
                             annotation_type: AnnotationType::Error,
-                        },
-                        SourceAnnotation {
-                            range: ctxt.current().get(ident.name.as_str()).unwrap().1,
-                            label: "it was already defined here",
-                            annotation_type: AnnotationType::Help,
-                        },
+                        }
                     ],
                 })
             } else {
                 ctxt.current()
-                    .insert(&ident.name, (typ.typ.clone(), ident.span.unwrap()));
+                    .insert(ident.name.clone(), typ.typ.clone());
                 Ok(typ.typ.clone())
             }
         }

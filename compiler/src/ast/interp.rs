@@ -15,9 +15,9 @@ pub fn eval_expr(expr: &RawExpr, store: &mut Snapshot<Store>) -> RawExpr {
 /** Evaluates `decl` under current `store`, and add value to `store` */
 pub fn eval_decl(decl: &Decl, store: &mut Snapshot<Store>) -> Result<(), TypeError> {
     let body = eval(store, &decl.body.expr);
-    store.current()
-        .val_store
-        .insert(decl.id.clone(), (body, decl.sig.typ.clone()));
+    let curr = store.current();
+    curr.val_store.insert(decl.id.clone(), body);
+    curr.typ_store.insert(decl.id.clone(), decl.sig.typ.clone());
     Ok(())
 }
 
@@ -44,7 +44,7 @@ fn eval(store: &mut Snapshot<Store>, expr: &RawExpr) -> RawExpr {
         Con { val: _ } => expr.clone(),
         // Yeah
         Var { id } => match store.current().get_val(id) {
-            Some(p) => p.0.clone(),
+            Some(v) => v.clone(),
             None => Var { id: id.clone() },
         },
         Let { pat, exp, body } => {
@@ -61,7 +61,9 @@ fn eval(store: &mut Snapshot<Store>, expr: &RawExpr) -> RawExpr {
                     body,
                 } => {
                     //Update the store
-                    store.current().val_store.insert(var.name, (param, typ.typ));
+		    let curr = store.current();
+                    curr.val_store.insert(var.name.clone(), param);
+		    curr.typ_store.insert(var.name, typ.typ);
                     eval(store, &body.expr)
                 }
                 _ => panic!("{}", TYPE_ERR_MSG),
@@ -197,14 +199,14 @@ fn eval(store: &mut Snapshot<Store>, expr: &RawExpr) -> RawExpr {
 /// Pattern matches `pat` recursively and binds to `exp`
 fn bind_pat(exp: &RawExpr, pat: &RawPattern, store: &mut Snapshot<Store>) {
     match (exp, pat) {
-        (_, RawPattern::Wildcard(_)) => { },
+        (_, RawPattern::Wildcard(_)) => (),
         (_, RawPattern::Binding(id, typ)) => {
             store.enter();
             let value = eval(store, exp);
             store.exeunt();
-            store.current()
-                .val_store
-                .insert(id.to_string(), (value, typ.typ.clone()));
+            let curr = store.current();
+	    curr.val_store.insert(id.to_string(), value);
+	    curr.typ_store.insert(id.to_string(), typ.typ.clone());
         }
         (RawExpr::Tuple { entries }, RawPattern::Tuple(patterns)) => {
             // Since we type check beforehand, these two vectors must have the same length
@@ -345,13 +347,14 @@ const TYPE_ERR_MSG: &str =
 `typ_store` maps type variable names to types */
 #[derive(Clone, Default)]
 pub struct Store {
-    val_store: HashMap<String, (RawExpr, RawType)>,
+    val_store: HashMap<String, RawExpr>,
     typ_store: HashMap<String, RawType>,
 }
 
 impl Display for Store {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        for (k, (v, t)) in &self.val_store {
+        for (k, v) in &self.val_store {
+	    let t = &self.typ_store[k];
             writeln!(f, "{k} : {t} := {v}")?
         }
         write!(f, "")
@@ -359,7 +362,7 @@ impl Display for Store {
 }
 
 impl Store {
-    fn get_val(&self, key: &str) -> Option<&(RawExpr, RawType)> {
+    fn get_val(&self, key: &str) -> Option<&RawExpr> {
         self.val_store.get(key)
     }
 }
