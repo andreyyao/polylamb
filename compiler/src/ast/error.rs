@@ -1,8 +1,5 @@
 use crate::ast::lex::Token;
-use annotate_snippets::{
-    display_list::FormatOptions,
-    snippet::{Annotation, AnnotationType, Slice, Snippet, SourceAnnotation},
-};
+use annotate_snippets::snippet::{AnnotationType, SourceAnnotation};
 
 pub type LexError = usize;
 
@@ -16,27 +13,27 @@ pub struct TypeError {
     pub annotations: Vec<SourceAnnotation<'static>>,
 }
 
-impl<'a> Into<Snippet<'a>> for TypeError {
-    fn into(self) -> Snippet<'a> {
-        Snippet {
-            title: Some(Annotation {
-                id: None,
-                label: Some(self.title),
-                annotation_type: self.annot_type,
-            }),
-            footer: vec![],
-            slices: vec![Slice {
-                source: "igfeuawiuhhjabhvuihafhlehehuegh;ewaielafeiafh;eiwleefiheileglifaueaflgaerg\nbwgffgefwaegoyewfhafyewaufewf\nfruagfaefeawfuegwfewa\nwaeufgewgfeiefhgeyfegfWEFGO", // TODO
-                line_start: 1, // TODO
-                origin: None,
-                annotations: self.annotations,
-                fold: false
-            }],
-            opt: FormatOptions {
-                color: true,
-                anonymized_line_numbers: false,
-                margin: None,
-            },
-        }
-    }
-}
+// impl<'a> Into<Snippet<'a>> for TypeError {
+//     fn into(self) -> Snippet<'a> {
+//         Snippet {
+//             title: Some(Annotation {
+//                 id: None,
+//                 label: Some(self.title),
+//                 annotation_type: self.annot_type,
+//             }),
+//             footer: vec![],
+//             slices: vec![Slice {
+//                 source: "igfeuawiuhhjabhvuihafhlehehuegh;ewaielafeiafh;eiwleefiheileglifaueaflgaerg\nbwgffgefwaegoyewfhafyewaufewf\nfruagfaefeawfuegwfewa\nwaeufgewgfeiefhgeyfegfWEFGO", // TODO
+//                 line_start: 1, // TODO
+//                 origin: None,
+//                 annotations: self.annotations,
+//                 fold: false
+//             }],
+//             opt: FormatOptions {
+//                 color: true,
+//                 anonymized_line_numbers: false,
+//                 margin: None,
+//             },
+//         }
+//     }
+// }

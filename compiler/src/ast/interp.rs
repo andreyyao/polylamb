@@ -4,57 +4,56 @@ use crate::util::persistent::{adventure, Snapshot};
 use std::collections::HashMap;
 use std::fmt::Display;
 
-use anyhow::{anyhow, Result};
-
 use super::ast::{Decl, Prog};
+use super::error::TypeError;
 
-/** Evaluates `expr` under environment `env` */
-pub fn eval_expr(expr: &RawExpr, env: &mut Snapshot<Environment>) -> RawExpr {
-    eval(env, expr)
+/** Evaluates `expr` under `store` */
+pub fn eval_expr(expr: &RawExpr, store: &mut Snapshot<Store>) -> RawExpr {
+    eval(store, expr)
 }
 
-/** Evaluates `decl` under current environment `env`, and add value to `env` */
-pub fn eval_decl(decl: &Decl, env: &mut Snapshot<Environment>) -> Result<()> {
-    let body = eval(env, &decl.body.expr);
-    env.current()
+/** Evaluates `decl` under current `store`, and add value to `store` */
+pub fn eval_decl(decl: &Decl, store: &mut Snapshot<Store>) -> Result<(), TypeError> {
+    let body = eval(store, &decl.body.expr);
+    store.current()
         .val_store
         .insert(decl.id.clone(), (body, decl.sig.typ.clone()));
     Ok(())
 }
 
 /** Evaluates program */
-pub fn eval_prog(prog: &Prog) -> Result<()> {
-    let mut env = Snapshot::new(Environment::new());
+pub fn eval_prog(prog: &Prog) -> Result<(), TypeError> {
+    let mut store = Snapshot::default();
     for id in &prog.order {
         let decl = &prog.declarations[id];
-        eval_decl(decl, &mut env)?;
+        eval_decl(decl, &mut store)?;
     }
     Ok(())
 }
 
 pub fn eval_closed_expr(expr: &RawExpr) -> RawExpr {
-    let mut env = Snapshot::new(Environment::new());
-    eval_expr(expr, &mut env)
+    let mut store = Snapshot::default();
+    eval_expr(expr, &mut store)
 }
 
-/** The evaluation function that returns the value of `expr` under the environment `env`, while potentially updating `env` with new bindings. */
-fn eval(env: &mut Snapshot<Environment>, expr: &RawExpr) -> RawExpr {
+/** The evaluation function that returns the value of `expr` under the store `store`, while potentially updating `store` with new bindings. */
+fn eval(store: &mut Snapshot<Store>, expr: &RawExpr) -> RawExpr {
     use RawExpr::*;
     match &expr {
         // Constants being constants
         Con { val: _ } => expr.clone(),
         // Yeah
-        Var { id } => match env.current().get_val(id) {
-            Ok(p) => p.0.clone(),
-            Err(_) => Var { id: id.clone() },
+        Var { id } => match store.current().get_val(id) {
+            Some(p) => p.0.clone(),
+            None => Var { id: id.clone() },
         },
         Let { pat, exp, body } => {
-            bind_pat(exp, pat, env);
-            eval(env, body)
+            bind_pat(exp, pat, store);
+            eval(store, body)
         }
         EApp { exp, arg } => {
-            let func = eval(env, exp);
-            let param = eval(env, arg);
+            let func = eval(store, exp);
+            let param = eval(store, arg);
             // lhs needs to be a value, which is a lambda expression by strength reduction
             match func {
                 Lambda {
@@ -62,22 +61,22 @@ fn eval(env: &mut Snapshot<Environment>, expr: &RawExpr) -> RawExpr {
                     body,
                 } => {
                     //Update the store
-                    env.current().val_store.insert(var.name, (param, typ.typ));
-                    eval(env, &body.expr)
+                    store.current().val_store.insert(var.name, (param, typ.typ));
+                    eval(store, &body.expr)
                 }
                 _ => panic!("{}", TYPE_ERR_MSG),
             }
         }
         TApp { exp, arg } => {
-            if let Any { arg: t, body } = eval(env, exp) {
-                env.current().typ_store.insert(t.name, arg.typ.clone());
-                eval(env, &body.expr)
+            if let Any { arg: t, body } = eval(store, exp) {
+                store.current().typ_store.insert(t.name, arg.typ.clone());
+                eval(store, &body.expr)
             } else {
                 panic!("{}", TYPE_ERR_MSG)
             }
         }
         Tuple { entries } => {
-            let neu = entries.iter().map(|e| Expr::new(eval(env, e))).collect();
+            let neu = entries.iter().map(|e| Expr::new(eval(store, e))).collect();
             Tuple { entries: neu }
         }
         Binop { lhs, op, rhs } => {
@@ -86,8 +85,8 @@ fn eval(env: &mut Snapshot<Environment>, expr: &RawExpr) -> RawExpr {
             match op {
                 // Integer arguments
                 Add | Sub | Mul | Eq | Lt | Gt | Ne => {
-                    let lhs_nf = eval(env, lhs);
-                    let rhs_nf = eval(env, rhs);
+                    let lhs_nf = eval(store, lhs);
+                    let rhs_nf = eval(store, rhs);
                     if let (Con { val: Integer(l) }, Con { val: Integer(r) }) = (&lhs_nf, &rhs_nf) {
                         match op {
                             Add => Con {
@@ -123,8 +122,8 @@ fn eval(env: &mut Snapshot<Environment>, expr: &RawExpr) -> RawExpr {
                     }
                 }
                 _ => {
-                    let lhs_nf = eval(env, lhs);
-                    let rhs_nf = eval(env, rhs);
+                    let lhs_nf = eval(store, lhs);
+                    let rhs_nf = eval(store, rhs);
                     if let (Con { val: Boolean(l) }, Con { val: Boolean(r) }) = (&lhs_nf, &rhs_nf) {
                         match op {
                             And => Con {
@@ -147,20 +146,20 @@ fn eval(env: &mut Snapshot<Environment>, expr: &RawExpr) -> RawExpr {
         }
         // For lambda, substitute body, except for variable that is abstracted
         Lambda { arg, body } => {
-            env.enter();
-            env.current().val_store.remove(&arg.0.name);
-            let body_new = eval(env, body);
-            env.exeunt();
+            store.enter();
+            store.current().val_store.remove(&arg.0.name);
+            let body_new = eval(store, body);
+            store.exeunt();
             Lambda {
                 arg: arg.clone(),
                 body: Box::new(Expr::new(body_new)),
             }
         }
         Any { arg, body } => {
-            env.enter();
-            env.current().typ_store.remove(&arg.name);
-            let body_new = eval(env, body);
-            env.exeunt();
+            store.enter();
+            store.current().typ_store.remove(&arg.name);
+            let body_new = eval(store, body);
+            store.exeunt();
             Any {
                 arg: arg.clone(),
                 body: Box::new(Expr::new(body_new)),
@@ -171,20 +170,20 @@ fn eval(env: &mut Snapshot<Environment>, expr: &RawExpr) -> RawExpr {
             branch_t,
             branch_f,
         } => {
-            adventure!(cond_new, eval(env, cond), env);
+            adventure!(cond_new, eval(store, cond), store);
             // If terminates, it should normalize to boolean constant
             if let Con {
                 val: Constant::Boolean(b),
             } = cond_new
             {
                 if b {
-                    eval(env, branch_t)
+                    eval(store, branch_t)
                 } else {
-                    eval(env, branch_f)
+                    eval(store, branch_f)
                 }
             } else {
-                adventure!(branch_t_new, eval(env, branch_t), env);
-                adventure!(branch_f_new, eval(env, branch_f), env);
+                adventure!(branch_t_new, eval(store, branch_t), store);
+                adventure!(branch_f_new, eval(store, branch_f), store);
                 If {
                     cond: Box::new(Expr::new(cond_new)),
                     branch_t: Box::new(Expr::new(branch_t_new)),
@@ -196,21 +195,21 @@ fn eval(env: &mut Snapshot<Environment>, expr: &RawExpr) -> RawExpr {
 }
 
 /// Pattern matches `pat` recursively and binds to `exp`
-fn bind_pat(exp: &RawExpr, pat: &RawPattern, env: &mut Snapshot<Environment>) {
+fn bind_pat(exp: &RawExpr, pat: &RawPattern, store: &mut Snapshot<Store>) {
     match (exp, pat) {
         (_, RawPattern::Wildcard(_)) => { },
         (_, RawPattern::Binding(id, typ)) => {
-            env.enter();
-            let value = eval(env, exp);
-            env.exeunt();
-            env.current()
+            store.enter();
+            let value = eval(store, exp);
+            store.exeunt();
+            store.current()
                 .val_store
                 .insert(id.to_string(), (value, typ.typ.clone()));
         }
         (RawExpr::Tuple { entries }, RawPattern::Tuple(patterns)) => {
             // Since we type check beforehand, these two vectors must have the same length
             for (e, p) in entries.iter().zip(patterns) {
-                bind_pat(e, p, env)
+                bind_pat(e, p, store)
             }
         }
         _ => panic!("{}", TYPE_ERR_MSG),
@@ -341,16 +340,16 @@ fn bind_pat(exp: &RawExpr, pat: &RawPattern, env: &mut Snapshot<Environment>) {
 const TYPE_ERR_MSG: &str =
     "Type mismatch during interpretation. This shouldn't happen. Did you typecheck?";
 
-/** A struct representing the "store"s.
+/** A struct representing the "Store"s.
 `val_store` is mapping from variable names to its (value, type) pair
 `typ_store` maps type variable names to types */
-#[derive(Clone)]
-pub struct Environment {
+#[derive(Clone, Default)]
+pub struct Store {
     val_store: HashMap<String, (RawExpr, RawType)>,
     typ_store: HashMap<String, RawType>,
 }
 
-impl Display for Environment {
+impl Display for Store {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for (k, (v, t)) in &self.val_store {
             writeln!(f, "{k} : {t} := {v}")?
@@ -359,19 +358,8 @@ impl Display for Environment {
     }
 }
 
-impl Environment {
-    fn get_val(&self, key: &str) -> Result<(&RawExpr, &RawType)> {
-        if let Some((v, t)) = self.val_store.get(key) {
-            Ok((v, t))
-        } else {
-            Err(anyhow!(format!("Undefined variable {key}.")))
-        }
-    }
-
-    pub fn new() -> Self {
-        Environment {
-            val_store: HashMap::new(),
-            typ_store: HashMap::new(),
-        }
+impl Store {
+    fn get_val(&self, key: &str) -> Option<&(RawExpr, RawType)> {
+        self.val_store.get(key)
     }
 }

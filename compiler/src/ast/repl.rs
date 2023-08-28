@@ -3,7 +3,7 @@ use rustyline::{DefaultEditor, Result};
 
 use crate::util::persistent::Snapshot;
 
-use super::interp::{Environment, eval_decl};
+use super::interp::eval_decl;
 use super::parse::parse_decl;
 
 pub fn repl() -> Result<()> {
@@ -13,7 +13,7 @@ pub fn repl() -> Result<()> {
     if rl.load_history("history.txt").is_err() {
         println!("No previous history.");
     }
-    let mut env = Snapshot::new(Environment::new());
+    let mut env = Snapshot::default();
     loop {
         let readline = rl.readline("λ2 >> ");
         match &readline {

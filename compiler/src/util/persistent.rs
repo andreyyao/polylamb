@@ -1,16 +1,10 @@
 /// General purpose persistent structure with levels
-pub struct Snapshot<T: Clone> {
+pub struct Snapshot<T: Clone + Default> {
     /// snapshots
     snapshots: Vec<T>,
 }
 
-impl<T: Clone> Snapshot<T> {
-    /// Empty context
-    pub fn new(content: T) -> Snapshot<T> {
-        Snapshot {
-            snapshots: vec![content],
-        }
-    }
+impl<T: Clone + Default> Snapshot<T> {
 
     /// Mutable reference to current version
     pub fn current(&mut self) -> &mut T {
@@ -25,6 +19,14 @@ impl<T: Clone> Snapshot<T> {
     /// Exits from current version and reverts to prior version
     pub fn exeunt(&mut self) {
         self.snapshots.pop();
+    }
+}
+
+impl<T: Clone + Default> Default for Snapshot<T> {
+    fn default() -> Snapshot<T> {
+        Snapshot {
+            snapshots: vec![T::default()],
+        }
     }
 }
 

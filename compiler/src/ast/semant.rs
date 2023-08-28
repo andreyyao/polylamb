@@ -10,7 +10,7 @@ use crate::util::persistent::{adventure, Snapshot};
 use annotate_snippets::snippet::{AnnotationType, SourceAnnotation};
 
 /** Mapping of variable names to list of (type, binding site). Latest element is most recent */
-pub type Context<'a> = Snapshot<HashMap<&'a String, (RawType, Span)>>;
+pub type Context<'a> = Snapshot<HashMap<&'a str, (RawType, Span)>>;
 
 /** Type-checks the expression `expr`. `ctxt` is a map from expression variables to types.
 Returns: The raw type of the checked `expr`, or `TypeError`
@@ -22,7 +22,7 @@ Returns: The raw type of the checked `expr`, or `TypeError`
 pub fn check_expr<'ast>(
     expr: &'ast Expr,
     val_ctxt: &mut Context<'ast>,
-    typ_vars: &mut Snapshot<HashSet<&'ast String>>,
+    typ_vars: &mut Snapshot<HashSet<&'ast str>>,
 ) -> Result<RawType, TypeError> {
     use RawExpr::*;
     use RawType::*;
@@ -32,7 +32,7 @@ pub fn check_expr<'ast>(
             Constant::Boolean(_) => Ok(Bool),
             Constant::Null => Ok(Unit),
         },
-        Var { id } => match val_ctxt.current().get(id) {
+        Var { id } => match val_ctxt.current().get(id.as_str()) {
             Some((typ, _)) => Ok(typ.clone()),
             None => Err(TypeError {
                 title: "Unbound variable",
@@ -186,7 +186,7 @@ pub fn check_expr<'ast>(
                             annotation_type: AnnotationType::Error,
                         },
                         SourceAnnotation {
-                            range: val_ctxt.current().get(&id.name).unwrap().1,
+                            range: val_ctxt.current().get(id.name.as_str()).unwrap().1,
                             label: "it has already been defined here",
                             annotation_type: AnnotationType::Help,
                         },
@@ -253,8 +253,7 @@ Returns: `Ok` if everything is fine, or `TypeError` otherwise.
  * `val_ctxt`: Persistent mapping from variable names to (raw type, span) */
 pub fn check_decl<'ast>(decl: &'ast Decl, val_ctxt: &mut Context<'ast>) -> Result<(), TypeError> {
     val_ctxt.enter();
-    let typ_vars: HashSet<&'ast String> = HashSet::new();
-    let mut typ_vars_persist = Snapshot::new(typ_vars);
+    let mut typ_vars_persist = Snapshot::default();
     let check_result = check_expr(&decl.body, val_ctxt, &mut typ_vars_persist);
     val_ctxt.exeunt();
     match check_result {
@@ -285,8 +284,7 @@ Returns: `Ok` if everything is fine, or `TypeError` otherwise.
 # Arguments
  * `prog`: The prog to check */
 pub fn check_prog<'ast>(prog: &'ast Prog) -> Result<(), TypeError> {
-    let map: HashMap<&'ast String, (RawType, Span)> = HashMap::new();
-    let mut val_ctxt = Context::new(map);
+    let mut val_ctxt = Context::default();
     let declarations = &prog.declarations;
     for id in &prog.order {
         check_decl(&declarations[id], &mut val_ctxt)?
@@ -296,8 +294,8 @@ pub fn check_prog<'ast>(prog: &'ast Prog) -> Result<(), TypeError> {
 
 // Check closed expression
 pub fn check_closed_expr(expr: &Expr) -> Result<RawType, TypeError> {
-    let mut ctxt = Snapshot::new(HashMap::new());
-    let mut tvars = Snapshot::new(HashSet::new());
+    let mut ctxt = Snapshot::default();
+    let mut tvars = Snapshot::default();
     check_expr(expr, &mut ctxt, &mut tvars)
 }
 
@@ -380,8 +378,7 @@ pub fn alpha_equiv(typ1: &RawType, typ2: &RawType) -> bool {
             _ => false,
         }
     }
-    let env = Env::default();
-    alpha_equiv_help(typ1, typ2, &mut Snapshot::new(env))
+    alpha_equiv_help(typ1, typ2, &mut Snapshot::default())
 }
 
 /** Returns `Ok(t)`, where `t` is type for `pat`, when no duplicates,
@@ -410,7 +407,7 @@ fn traverse_pat<'a>(
                             annotation_type: AnnotationType::Error,
                         },
                         SourceAnnotation {
-                            range: ctxt.current().get(&ident.name).unwrap().1,
+                            range: ctxt.current().get(ident.name.as_str()).unwrap().1,
                             label: "it was already defined here",
                             annotation_type: AnnotationType::Help,
                         },
