@@ -1,10 +1,10 @@
 /// General purpose persistent structure with levels
-pub struct Snapshot<T: Clone + Default> {
+pub struct Snapshot<T: Clone> {
     /// snapshots
     snapshots: Vec<T>,
 }
 
-impl<T: Clone + Default> Snapshot<T> {
+impl<T: Clone> Snapshot<T> {
     pub fn new(initial: T) -> Self {
         Snapshot {
             snapshots: vec![initial],
@@ -35,6 +35,12 @@ impl<T: Clone + Default> Default for Snapshot<T> {
     }
 }
 
+impl<T: Display + Clone> Display for Snapshot<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.snapshots.last().unwrap())
+    }
+}
+
 /// Adventures into next level
 macro_rules! adventure {
     ($v: ident, $e:expr, $ctxt_name: ident) => {
@@ -43,5 +49,7 @@ macro_rules! adventure {
         $ctxt_name.exeunt()
     };
 }
+
+use std::fmt::Display;
 
 pub(crate) use adventure;

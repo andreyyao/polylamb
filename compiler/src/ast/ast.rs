@@ -50,7 +50,7 @@ pub enum RawExpr {
     Con { val: Constant },
     /// Variables
     Var { id: String },
-    /// `let [pat] = [exp] in [body] end`
+    /// `let [pat] = [exp] in [body]`
     Let {
         pat: Pattern,
         exp: Box<Expr>,
@@ -274,7 +274,7 @@ impl Display for RawType {
                 write!(f, "(")?;
                 for (i, t) in typs.iter().enumerate() {
                     if i != 0 {
-                        write!(f, ", ")?;
+                        write!(f, " * ")?;
                     }
                     fmt_composite(t, f)?;
                 }
@@ -288,7 +288,7 @@ impl Display for RawType {
             RawType::Forall(v, t) => {
                 write!(f, "∀ {v}. {t}")
             }
-            RawType::TVar(v) => write!(f, "{v}"),
+            RawType::TVar(v) => write!(f, "{}", v.blue()),
         }
     }
 }
@@ -331,10 +331,10 @@ impl Display for RawExpr {
                 write!(f, "({lhs}) {op} ({rhs})")
             }
             RawExpr::Lambda { arg: (v, t), body } => {
-                write!(f, "λ {v}: {t}. {body}")
+                write!(f, "λ {}: {}. {}", v.name.red(), t, body)
             }
             RawExpr::Any { arg, body } => {
-                write!(f, "Λ {arg}. {body}")
+                write!(f, "Λ {}. {}", arg.name.blue(), body)
             }
             RawExpr::If {
                 cond,

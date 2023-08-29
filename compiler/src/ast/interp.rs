@@ -11,14 +11,18 @@ use super::semant::{check_decl, check_expr};
 /** Evaluates `expr` under `store` */
 pub fn eval_expr(expr: &Expr, store: &mut Snapshot<Store>) -> Result<RawExpr, TypeError> {
     let mut ctxt = Snapshot::new(store.current().typ_store.clone());
+    ctxt.enter();
     check_expr(&expr, &mut ctxt, &mut Snapshot::default())?;
+    ctxt.exeunt();
     Ok(eval(store, expr))
 }
 
 /** Evaluates `decl` under current `store`, and add value to `store` */
 pub fn eval_decl(decl: &Decl, store: &mut Snapshot<Store>) -> Result<(), TypeError> {
     let mut ctxt = Snapshot::new(store.current().typ_store.clone());
+    ctxt.enter();
     check_decl(decl, &mut ctxt)?;
+    ctxt.exeunt();
     let body = eval(store, &decl.body.expr);
     let curr = store.current();
     curr.val_store.insert(decl.id.clone(), body);
@@ -44,39 +48,46 @@ pub fn eval_closed_expr(expr: &Expr) -> RawExpr {
 /** The evaluation function that returns the value of `expr` under the store `store`, while potentially updating `store` with new bindings. */
 fn eval(store: &mut Snapshot<Store>, expr: &RawExpr) -> RawExpr {
     use RawExpr::*;
-    match &expr {
+    // println!("-------------------------------");
+    // println!("Store:\n{}", store);
+    // println!("Evaluating: {}", expr);
+    // println!("-------------------------------");
+    let debug_temp_var = match &expr {
         // Constants being constants
         Con { val: _ } => expr.clone(),
         // Yeah
         Var { id } => match store.current().get_val(id) {
-            Some(v) => v.clone(),
-            None => Var { id: id.clone() },
+            Some(value) => value.clone(),
+            None => panic!("{}", TYPE_ERR_MSG),
         },
         Let { pat, exp, body } => {
-            bind_pat(exp, pat, store);
-            eval(store, body)
+            let exp_neu = eval(store, exp);
+            store.enter();
+            bind_pat(&exp_neu, pat, store);
+            let res = eval(store, body);
+            store.exeunt();
+            res
         }
         EApp { exp, arg } => {
             let func = eval(store, exp);
             let param = eval(store, arg);
             // lhs needs to be a value, which is a lambda expression by strength reduction
-            match func {
+            let res = match func {
                 Lambda {
                     arg: (var, typ),
                     body,
                 } => {
-                    //Update the store
+                    // Update the store
                     let curr = store.current();
                     curr.val_store.insert(var.name.clone(), param);
                     curr.typ_store.insert(var.name, typ.typ);
                     eval(store, &body.expr)
                 }
-                _ => EApp {
-                    exp: Box::new(Expr::new(func)),
-                    arg: Box::new(Expr::new(param)),
-                },
-            }
+                _ => panic!("{}", TYPE_ERR_MSG),
+            };
+            res
         }
+        // TODO properly apply
         TApp { exp, arg } => {
             if let Any { arg: t, body } = eval(store, exp) {
                 store.current().typ_store.insert(t.name, arg.typ.clone());
@@ -154,27 +165,18 @@ fn eval(store: &mut Snapshot<Store>, expr: &RawExpr) -> RawExpr {
                 }
             }
         }
-        // For lambda, substitute body, except for variable that is abstracted
-        Lambda { arg, body } => {
-            store.enter();
-            store.current().val_store.remove(&arg.0.name);
-            let body_new = eval(store, body);
-            store.exeunt();
-            Lambda {
-                arg: arg.clone(),
-                body: Box::new(Expr::new(body_new)),
-            }
-        }
-        Any { arg, body } => {
-            store.enter();
-            store.current().typ_store.remove(&arg.name);
-            let body_new = eval(store, body);
-            store.exeunt();
-            Any {
-                arg: arg.clone(),
-                body: Box::new(Expr::new(body_new)),
-            }
-        }
+        Lambda { .. } => expr.clone(),
+        Any { .. } => expr.clone(),
+        // {
+        //     store.enter();
+        //     store.current().typ_store.remove(&arg.name);
+        //     let body_new = eval(store, body);
+        //     store.exeunt();
+        //     Any {
+        //         arg: arg.clone(),
+        //         body: Box::new(Expr::new(body_new)),
+        //     }
+        // }
         If {
             cond,
             branch_t,
@@ -192,35 +194,28 @@ fn eval(store: &mut Snapshot<Store>, expr: &RawExpr) -> RawExpr {
                     eval(store, branch_f)
                 }
             } else {
-                adventure!(branch_t_new, eval(store, branch_t), store);
-                adventure!(branch_f_new, eval(store, branch_f), store);
-                If {
-                    cond: Box::new(Expr::new(cond_new)),
-                    branch_t: Box::new(Expr::new(branch_t_new)),
-                    branch_f: Box::new(Expr::new(branch_f_new)),
-                }
+                panic!("{}", TYPE_ERR_MSG)
             }
         }
-    }
+    };
+    debug_temp_var
 }
 
 /// Pattern matches `pat` recursively and binds to `exp`
 fn bind_pat(exp: &RawExpr, pat: &RawPattern, store: &mut Snapshot<Store>) {
     match (exp, pat) {
-        (_, RawPattern::Wildcard(_)) => (),
-        (_, RawPattern::Binding(id, typ)) => {
-            store.enter();
-            let value = eval(store, exp);
-            store.exeunt();
-            let curr = store.current();
-            curr.val_store.insert(id.to_string(), value);
-            curr.typ_store.insert(id.to_string(), typ.typ.clone());
-        }
         (RawExpr::Tuple { entries }, RawPattern::Tuple(patterns)) => {
             // Since we type check beforehand, these two vectors must have the same length
             for (e, p) in entries.iter().zip(patterns) {
                 bind_pat(e, p, store)
             }
+        }
+        (_, RawPattern::Wildcard(_)) => (),
+        (_, RawPattern::Binding(id, typ)) => {
+            let value = eval(store, exp);
+            let curr = store.current();
+            curr.val_store.insert(id.to_string(), value);
+            curr.typ_store.insert(id.to_string(), typ.typ.clone());
         }
         _ => panic!("{}", TYPE_ERR_MSG),
     }
