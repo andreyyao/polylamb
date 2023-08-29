@@ -1,10 +1,11 @@
 use crate::ast::ast::{Binary, Constant, Expr, RawExpr, RawPattern, RawType};
 use crate::util::persistent::{adventure, Snapshot};
+use std::collections::hash_set::Union;
 /** Interpreting for the System F AST */
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fmt::Display;
 
-use super::ast::{Decl, Prog};
+use super::ast::{Decl, Prog, Pattern, Ident, Type};
 use super::error::TypeError;
 use super::semant::{check_decl, check_expr};
 
@@ -44,6 +45,32 @@ pub fn eval_closed_expr(expr: &Expr) -> RawExpr {
     let mut store = Snapshot::default();
     eval_expr(expr, &mut store).unwrap()
 }
+
+
+// // Taken from https://github.com/jofas/map_macro
+// macro_rules! set {
+//     {$($v: expr),* $(,)?} => {
+//         HashSet::from([$($v,)*])
+//     };
+// }
+
+// /// Free variables
+// fn fv(expr: &Expr) -> HashSet<String> {
+//     use RawExpr::*;
+//     let expr = &expr.expr;
+//     match expr {
+//         Con { .. } => set!(),
+//         Var { id } => set!(id.clone()),
+//         Let { pat, exp, body } => todo!(),
+//         EApp { exp, arg } => fv(exp).union(&fv(arg)),
+//         TApp { exp, arg } => todo!(),
+//         Tuple { entries } => todo!(),
+//         Binop { lhs, op, rhs } => todo!(),
+//         Lambda { arg, body } => todo!(),
+//         Any { arg, body } => todo!(),
+//         If { cond, branch_t, branch_f } => todo!(),
+//     }
+// }
 
 /** The evaluation function that returns the value of `expr` under the store `store`, while potentially updating `store` with new bindings. */
 fn eval(store: &mut Snapshot<Store>, expr: &RawExpr) -> RawExpr {
@@ -239,47 +266,64 @@ fn bind_pat(exp: &RawExpr, pat: &RawPattern, store: &mut Snapshot<Store>) {
 //     }
 // }
 
-// impl RawPattern {
-//     /// Whether `self` contains the variable `var`
-//     fn contains_var(&self, var: &str) -> bool {
-// 	match self {
-// 	    RawPattern::Wildcard(_) => false,
-// 	    RawPattern::Binding(v, _) => v.name == var,
-// 	    RawPattern::Tuple(pats) => pats.iter().any(|p| p.contains_var(var)),
-// 	}
-//     }
-// }
+impl RawPattern {
 
-// /// Returns `true` iff `var` is a free variable somewhere in `expression`
-// fn free_var(var: &str, expression: &RawExpr) -> bool {
-//     use RawExpr::*;
-//     match expression {
-//         Con { .. } => false,
-//         Var { id } => id == var,
-//         Let { pat, exp, body } => {
-// 	    free_var(var, exp) |
-// 	    (!&pat.contains_var(var) & free_var(var, body))
-// 	}
-//         EApp { exp, arg } => {
-// 	    free_var(var, exp) | free_var(var, arg)
-// 	}
-//         TApp { exp, .. } => free_var(var, exp),
-//         Tuple { entries } => entries.iter().any(|e| free_var(var, e)),
-//         Binop { lhs, op: _, rhs } => {
-// 	    free_var(var, lhs) | free_var(var, rhs)
-// 	}
-//         Lambda { arg, body } => {
-// 	    (arg.0.name != var) & free_var(var, body)
-// 	}
-//         Any { arg: _, body } =>
-// 	    free_var(var, body),
-//         If { cond, branch_t, branch_f } => {
-// 	    free_var(var, cond) |
-// 	    free_var(var, branch_t) |
-// 	    free_var(var, branch_f)
-// 	}
-//     }
-// }
+    /// Whether `self` contains the variable `var`
+    fn contains_var(&self, var: &str) -> bool {
+	self.any(|v, _| v.name == var)
+    }
+
+    /// Returns `true` iff all binding in `self` satisfies predicate `pred`
+    fn all<F>(&self, pred: F) -> bool
+    where F: Fn(&Ident, &Type) -> bool {
+	match self {
+	    RawPattern::Wildcard(_) => true,
+	    RawPattern::Binding(v, t) => pred(v, t),
+	    RawPattern::Tuple(pats) => pats.iter().all(|pat| pat.all(&pred)),
+	}
+    }
+
+    /// Returns `true` iff any binding in `self` satisfies predicate `pred`
+    fn any<F>(&self, pred: F) -> bool
+    where F: Fn(&Ident, &Type) -> bool {
+	match self {
+	    RawPattern::Wildcard(_) => false,
+	    RawPattern::Binding(v, t) => pred(v, t),
+	    RawPattern::Tuple(pats) => pats.iter().any(|pat| pat.any(&pred)),
+	}
+    }
+}
+
+/// Returns `true` iff `var` is a free variable somewhere in `expression`
+fn fv(var: &str, expression: &RawExpr) -> bool {
+    use RawExpr::*;
+    match expression {
+        Con { .. } => false,
+        Var { id } => id == var,
+        Let { pat, exp, body } => {
+	    fv(var, exp) |
+	    (!&pat.contains_var(var) & fv(var, body))
+	}
+        EApp { exp, arg } => {
+	    fv(var, exp) | fv(var, arg)
+	}
+        TApp { exp, .. } => fv(var, exp),
+        Tuple { entries } => entries.iter().any(|e| fv(var, e)),
+        Binop { lhs, op: _, rhs } => {
+	    fv(var, lhs) | fv(var, rhs)
+	}
+        Lambda { arg, body } => {
+	    (arg.0.name != var) & fv(var, body)
+	}
+        Any { arg: _, body } =>
+	    fv(var, body),
+        If { cond, branch_t, branch_f } => {
+	    fv(var, cond) |
+	    fv(var, branch_t) |
+	    fv(var, branch_f)
+	}
+    }
+}
 
 // /** Performs capture-avoiding substitution
 //     `expression`: The expression to perform substitute on
