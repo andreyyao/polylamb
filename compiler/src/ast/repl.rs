@@ -3,7 +3,7 @@ use rustyline::{DefaultEditor, Result};
 
 use crate::util::persistent::Snapshot;
 
-use super::interp::{eval_decl, eval_expr};
+use super::interp::{eval_decl, eval_closed_expr};
 use super::parse::{parse_decl, parse_expr};
 
 pub fn repl() -> Result<()> {
@@ -13,7 +13,7 @@ pub fn repl() -> Result<()> {
     if rl.load_history("history.txt").is_err() {
         println!("No previous history.");
     }
-    let mut store = Snapshot::default();
+    // let mut store = Snapshot::default();
     loop {
         let readline = rl.readline("λ2 >> ");
         match &readline {
@@ -27,21 +27,20 @@ pub fn repl() -> Result<()> {
                             break;
                         }
                         "#context" => {
-                            println!("\n{}", store.current())
+			    todo!()
+                            // println!("\n{}", store.current())
                         }
                         _ => println!("Unknown command"),
                     }
                 } else {
                     match parse_decl(input) {
-                        Ok(decl) => match eval_decl(&decl, &mut store) {
-                            Ok(_) => (),
-                            Err(typ_err) => println!("{}", typ_err.title),
-                        },
+                        Ok(decl) => todo!(),
+			//     match eval_decl(&decl, &mut store) {
+                        //     Ok(_) => (),
+                        //     Err(typ_err) => println!("{}", typ_err.title),
+                        // },
                         Err(_) => match parse_expr(input) {
-                            Ok(expr) => match eval_expr(&expr, &mut store) {
-                                Ok(v) => println!("\n{}\n", v),
-                                Err(typ_err) => println!("{}", typ_err.title), //TODO proper type error printing
-                            },
+                            Ok(expr) => println!("{}", eval_closed_expr(&expr)),
                             Err(parse_err) => println!("{}", parse_err),
                         },
                     }

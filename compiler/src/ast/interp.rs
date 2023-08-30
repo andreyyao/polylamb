@@ -8,97 +8,104 @@ use super::ast::{Decl, Prog};
 use super::error::TypeError;
 use super::semant::{check_decl, check_expr};
 
-/** Evaluates `expr` under `store` */
-pub fn eval_expr(expr: &Expr, store: &mut Snapshot<Store>) -> Result<RawExpr, TypeError> {
-    let mut ctxt = Snapshot::new(store.current().typ_store.clone());
-    ctxt.enter();
-    check_expr(&expr, &mut ctxt, &mut Snapshot::default())?;
-    ctxt.exeunt();
-    Ok(eval(store, expr))
-}
+// /** Evaluates `expr` under `store` */
+// pub fn eval_expr(expr: &Expr, store: &mut Snapshot<Store>) -> Result<RawExpr, TypeError> {
+//     let mut ctxt = Snapshot::new(store.current().typ_store.clone());
+//     ctxt.enter();
+//     check_expr(&expr, &mut ctxt, &mut Snapshot::default())?;
+//     ctxt.exeunt();
+//     Ok(eval(store, expr))
+// }
 
 /** Evaluates `decl` under current `store`, and add value to `store` */
-pub fn eval_decl(decl: &Decl, store: &mut Snapshot<Store>) -> Result<(), TypeError> {
-    let mut ctxt = Snapshot::new(store.current().typ_store.clone());
-    ctxt.enter();
-    check_decl(decl, &mut ctxt)?;
-    ctxt.exeunt();
-    let body = eval(store, &decl.body.expr);
-    let curr = store.current();
-    curr.val_store.insert(decl.id.clone(), body);
-    curr.typ_store.insert(decl.id.clone(), decl.sig.typ.clone());
-    Ok(())
+pub fn eval_decl(decl: &Decl, store: &Store) -> Result<(), TypeError> {
+    // let mut ctxt = Snapshot::new(store.current().typ_store.clone());
+    // ctxt.enter();
+    // check_decl(decl, &mut ctxt)?;
+    // ctxt.exeunt();
+    // let body = eval(store, &decl.body.expr);
+    // let curr = store.current();
+    // curr.val_store.insert(decl.id.clone(), body);
+    // curr.typ_store.insert(decl.id.clone(), decl.sig.typ.clone());
+    // Ok(())
+    todo!()
 }
 
-/** Evaluates program */
-pub fn eval_prog(prog: &Prog) -> Result<(), TypeError> {
-    let mut store = Snapshot::default();
-    for id in &prog.order {
-        let decl = &prog.declarations[id];
-        eval_decl(decl, &mut store)?;
-    }
-    Ok(())
-}
+// /** Evaluates program */
+// pub fn eval_prog(prog: &Prog) -> Result<(), TypeError> {
+//     let mut store = Snapshot::default();
+//     for id in &prog.order {
+//         let decl = &prog.declarations[id];
+//         eval_decl(decl, &mut store)?;
+//     }
+//     Ok(())
+// }
 
 pub fn eval_closed_expr(expr: &Expr) -> RawExpr {
-    let mut store = Snapshot::default();
-    eval_expr(expr, &mut store).unwrap()
+    let store = HashMap::default();
+    eval(&store, expr).into()
 }
 
-/** The evaluation function that returns the value of `expr` under the store `store`, while potentially updating `store` with new bindings. */
-fn eval(store: &mut Snapshot<Store>, expr: &RawExpr) -> RawExpr {
+impl Into<RawExpr> for Value {
+    fn into(self) -> RawExpr {
+        match self {
+            Value::VConst(v) => RawExpr::Con { val: v },
+            Value::VTuple(vs) => {
+		let es = vs.iter().map(|v| Expr::new(Into::<RawExpr>::into(v.clone()))).collect();
+		RawExpr::Tuple { entries: es }
+	    },
+            Value::VClosure(v, _) => v,
+	    Value::VAny(v, _) => v
+        }
+    }
+}
+
+type Environment = HashMap<String, Value>;
+
+#[derive(Clone)]
+enum Value {
+    VConst(Constant),
+    VTuple(Vec<Value>),
+    VClosure(RawExpr, Environment),
+    VAny(RawExpr, Environment)
+}
+
+/** The evaluation function that returns the value of `expr` under the `store`, while potentially updating `store` with new bindings. */
+fn eval(env: &Environment, expr: &RawExpr) -> Value {
     use RawExpr::*;
+    use Value::*;
     // println!("-------------------------------");
     // println!("Store:\n{}", store);
     // println!("Evaluating: {}", expr);
     // println!("-------------------------------");
-    let debug_temp_var = match &expr {
+    match &expr {
         // Constants being constants
-        Con { val: _ } => expr.clone(),
+        Con { val } => Value::VConst(val.clone()),
         // Yeah
-        Var { id } => match store.current().get_val(id) {
-            Some(value) => value.clone(),
-            None => panic!("{}", TYPE_ERR_MSG),
-        },
+        Var { id } => env[id].clone(),
         Let { pat, exp, body } => {
-            let exp_neu = eval(store, exp);
-            store.enter();
-            bind_pat(&exp_neu, pat, store);
-            let res = eval(store, body);
-            store.exeunt();
-            res
+            todo!()
         }
-        EApp { exp, arg } => {
-            let func = eval(store, exp);
-            let param = eval(store, arg);
-            // lhs needs to be a value, which is a lambda expression by strength reduction
-            let res = match func {
+        EApp { exp, arg } => match eval(env, exp) {
+            Value::VClosure(
                 Lambda {
-                    arg: (var, typ),
+                    arg: (id, _),
                     body,
-                } => {
-                    // Update the store
-                    let curr = store.current();
-                    curr.val_store.insert(var.name.clone(), param);
-                    curr.typ_store.insert(var.name, typ.typ);
-                    eval(store, &body.expr)
-                }
-                _ => panic!("{}", TYPE_ERR_MSG),
-            };
-            res
-        }
-        // TODO properly apply
-        TApp { exp, arg } => {
-            if let Any { arg: t, body } = eval(store, exp) {
-                store.current().typ_store.insert(t.name, arg.typ.clone());
-                eval(store, &body.expr)
-            } else {
-                panic!("{}", TYPE_ERR_MSG)
+                },
+                e,
+            ) => {
+                let b = eval(env, arg);
+                let mut map = e.clone();
+                map.insert(id.name, b);
+                eval(&map, &body.expr)
             }
-        }
+            _ => panic!("{}", TYPE_ERR_MSG),
+        },
+        // TODO properly apply
+        TApp { .. } => { todo!() }
         Tuple { entries } => {
-            let neu = entries.iter().map(|e| Expr::new(eval(store, e))).collect();
-            Tuple { entries: neu }
+            let neu = entries.iter().map(|e| (eval(env, e))).collect();
+            Value::VTuple(neu)
         }
         Binop { lhs, op, rhs } => {
             use Binary::*;
@@ -106,120 +113,76 @@ fn eval(store: &mut Snapshot<Store>, expr: &RawExpr) -> RawExpr {
             match op {
                 // Integer arguments
                 Add | Sub | Mul | Eq | Lt | Gt | Ne => {
-                    let lhs_nf = eval(store, lhs);
-                    let rhs_nf = eval(store, rhs);
-                    if let (Con { val: Integer(l) }, Con { val: Integer(r) }) = (&lhs_nf, &rhs_nf) {
-                        match op {
-                            Add => Con {
-                                val: Integer(l + r),
-                            },
-                            Sub => Con {
-                                val: Integer(l - r),
-                            },
-                            Mul => Con {
-                                val: Integer(l * r),
-                            },
-                            Eq => Con {
-                                val: Boolean(l == r),
-                            },
-                            Lt => Con {
-                                val: Boolean(l < r),
-                            },
-                            Gt => Con {
-                                val: Boolean(l > r),
-                            },
-                            Ne => Con {
-                                val: Boolean(l != r),
-                            },
+                    let lhs_nf = eval(env, lhs);
+                    let rhs_nf = eval(env, rhs);
+                    if let (VConst(Integer(l)), VConst(Integer(r))) = (&lhs_nf, &rhs_nf) {
+                        VConst(match op {
+                            Add => Integer(l + r),
+                            Sub => Integer(l - r),
+                            Mul => Integer(l * r),
+                            Eq => Boolean(l == r),
+                            Lt => Boolean(l < r),
+                            Gt => Boolean(l > r),
+                            Ne => Boolean(l != r),
                             // Unreachable
                             _ => panic!(),
-                        }
+                        })
                     } else {
-                        Binop {
-                            lhs: Box::new(Expr::new(lhs_nf)),
-                            op: op.clone(),
-                            rhs: Box::new(Expr::new(rhs_nf)),
-                        }
+                        panic!()
                     }
                 }
                 _ => {
-                    let lhs_nf = eval(store, lhs);
-                    let rhs_nf = eval(store, rhs);
-                    if let (Con { val: Boolean(l) }, Con { val: Boolean(r) }) = (&lhs_nf, &rhs_nf) {
+                    let lhs_nf = eval(env, lhs);
+                    let rhs_nf = eval(env, rhs);
+                    if let (VConst(Boolean(l)), VConst(Boolean(r))) = (&lhs_nf, &rhs_nf) {
                         match op {
-                            And => Con {
-                                val: Boolean(l & r),
-                            },
-                            Or => Con {
-                                val: Boolean(l | r),
-                            },
+			    And => VConst(Boolean(l & r)),
+			    Or => VConst(Boolean(l | r)),
                             _ => panic!(),
                         }
-                    } else {
-                        Binop {
-                            lhs: Box::new(Expr::new(lhs_nf)),
-                            op: op.clone(),
-                            rhs: Box::new(Expr::new(rhs_nf)),
-                        }
-                    }
+                    } else { panic!() }
+
                 }
             }
         }
-        Lambda { .. } => expr.clone(),
-        Any { .. } => expr.clone(),
-        // {
-        //     store.enter();
-        //     store.current().typ_store.remove(&arg.name);
-        //     let body_new = eval(store, body);
-        //     store.exeunt();
-        //     Any {
-        //         arg: arg.clone(),
-        //         body: Box::new(Expr::new(body_new)),
-        //     }
-        // }
+        Lambda { .. } => VClosure(expr.clone(), env.clone()),
+        Any { .. } => VAny(expr.clone(), env.clone()),
         If {
             cond,
             branch_t,
             branch_f,
         } => {
-            adventure!(cond_new, eval(store, cond), store);
-            // If terminates, it should normalize to boolean constant
-            if let Con {
-                val: Constant::Boolean(b),
-            } = cond_new
-            {
+            if let VConst(Constant::Boolean(b)) = eval(&env, cond) {
                 if b {
-                    eval(store, branch_t)
+                    eval(env, branch_t)
                 } else {
-                    eval(store, branch_f)
+                    eval(env, branch_f)
                 }
             } else {
                 panic!("{}", TYPE_ERR_MSG)
             }
         }
-    };
-    debug_temp_var
+    }
 }
 
 /// Pattern matches `pat` recursively and binds to `exp`
-fn bind_pat(exp: &RawExpr, pat: &RawPattern, store: &mut Snapshot<Store>) {
-    match (exp, pat) {
-        (RawExpr::Tuple { entries }, RawPattern::Tuple(patterns)) => {
-            // Since we type check beforehand, these two vectors must have the same length
-            for (e, p) in entries.iter().zip(patterns) {
-                bind_pat(e, p, store)
-            }
-        }
-        (_, RawPattern::Wildcard(_)) => (),
-        (_, RawPattern::Binding(id, typ)) => {
-            let value = eval(store, exp);
-            let curr = store.current();
-            curr.val_store.insert(id.to_string(), value);
-            curr.typ_store.insert(id.to_string(), typ.typ.clone());
-        }
-        _ => panic!("{}", TYPE_ERR_MSG),
-    }
-}
+// fn bind_pat(exp: &RawExpr, pat: &RawPattern, store: &mut Snapshot<Store>) {
+// match (exp, pat) {
+//     (RawExpr::Tuple { entries }, RawPattern::Tuple(patterns)) => {
+//         // Since we type check beforehand, these two vectors must have the same length
+//         for (e, p) in entries.iter().zip(patterns) {
+//             bind_pat(e, p, store)
+//         }
+//     }
+//     (_, RawPattern::Wildcard(_)) => (),
+//     (_, RawPattern::Binding(id, typ)) => {
+//         let value = eval(store, exp);
+//         let curr = store.current();
+//         curr.val_store.insert(id.to_string(), value);
+//         curr.typ_store.insert(id.to_string(), typ.typ.clone());
+//     }
+//     _ => panic!("{}", TYPE_ERR_MSG),
+// }
 
 // // Returns Some(ref), where `ref` is where the variable `v` occurs inside pattern `p`. None otherwise.
 // fn find_binding<'a>(p: &'a mut Pattern, v: &'a str) -> Option<&'a mut String> {
