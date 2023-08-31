@@ -53,7 +53,7 @@ const LET: &[&str] = &[
     r#"let twice: forall T. (T -> T) -> (T -> T) = any T. \ f: T -> T. \ x: T. f (f x) in
        let let quad: forall T. (T -> T) -> (T -> T) = any T. lambda f: T -> T. \ x: T. twice[T] f x in
        let plus_one: Int -> Int = lambda x: Int. x + 1 in
-       quad[Int] plus_one 3"#
+       quad[Int] plus_one 3"#,
 ];
 
 #[test]

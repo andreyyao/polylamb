@@ -1,104 +1,143 @@
-use crate::ast::ast::{Binary, Constant, Expr, RawExpr, RawPattern, RawType};
-use crate::util::persistent::{adventure, Snapshot};
+use crate::ast::ast::{Binary, Constant, Expr, RawExpr, RawPattern};
+use crate::util::persistent::Snapshot;
 /** Interpreting for the System F AST */
 use std::collections::HashMap;
 use std::fmt::Display;
 
 use super::ast::{Decl, Prog};
 use super::error::TypeError;
-use super::semant::{check_decl, check_expr};
+use super::semant::{check_decl, check_expr, Context};
 
-/** Evaluates `expr` under `store` */
-pub fn eval_expr(expr: &Expr, store: &mut Snapshot<Store>) -> Result<RawExpr, TypeError> {
-    let mut ctxt = Snapshot::new(store.current().typ_store.clone());
-    ctxt.enter();
+/** Evaluates `expr` under `env` */
+pub fn eval_expr(
+    expr: &Expr,
+    context: &Context,
+    environment: &Environment,
+) -> Result<Value, TypeError> {
+    let mut ctxt = Snapshot::new(context.clone());
     check_expr(&expr, &mut ctxt, &mut Snapshot::default())?;
-    ctxt.exeunt();
-    Ok(eval(store, expr))
+    Ok(eval(environment, expr))
 }
 
-/** Evaluates `decl` under current `store`, and add value to `store` */
-pub fn eval_decl(decl: &Decl, store: &mut Snapshot<Store>) -> Result<(), TypeError> {
-    let mut ctxt = Snapshot::new(store.current().typ_store.clone());
-    ctxt.enter();
-    check_decl(decl, &mut ctxt)?;
-    ctxt.exeunt();
-    let body = eval(store, &decl.body.expr);
-    let curr = store.current();
-    curr.val_store.insert(decl.id.clone(), body);
-    curr.typ_store.insert(decl.id.clone(), decl.sig.typ.clone());
+/** Evaluates `decl` under current `environment` */
+pub fn eval_decl(
+    decl: &Decl,
+    context: &mut Context,
+    environment: &mut Environment,
+) -> Result<(), TypeError> {
+    check_decl(&decl, context)?;
+    environment.insert(decl.id.clone(), eval(environment, &decl.body));
     Ok(())
 }
 
 /** Evaluates program */
 pub fn eval_prog(prog: &Prog) -> Result<(), TypeError> {
-    let mut store = Snapshot::default();
+    let mut env = Environment::default();
+    let mut ctxt = Context::default();
     for id in &prog.order {
         let decl = &prog.declarations[id];
-        eval_decl(decl, &mut store)?;
+        eval_decl(decl, &mut ctxt, &mut env)?;
     }
     Ok(())
 }
 
 pub fn eval_closed_expr(expr: &Expr) -> RawExpr {
-    let mut store = Snapshot::default();
-    eval_expr(expr, &mut store).unwrap()
+    let store = HashMap::default();
+    eval(&store, expr).into()
 }
 
-/** The evaluation function that returns the value of `expr` under the store `store`, while potentially updating `store` with new bindings. */
-fn eval(store: &mut Snapshot<Store>, expr: &RawExpr) -> RawExpr {
-    use RawExpr::*;
-    // println!("-------------------------------");
-    // println!("Store:\n{}", store);
-    // println!("Evaluating: {}", expr);
-    // println!("-------------------------------");
-    let debug_temp_var = match &expr {
-        // Constants being constants
-        Con { val: _ } => expr.clone(),
-        // Yeah
-        Var { id } => match store.current().get_val(id) {
-            Some(value) => value.clone(),
-            None => panic!("{}", TYPE_ERR_MSG),
-        },
-        Let { pat, exp, body } => {
-            let exp_neu = eval(store, exp);
-            store.enter();
-            bind_pat(&exp_neu, pat, store);
-            let res = eval(store, body);
-            store.exeunt();
-            res
+impl Into<RawExpr> for Value {
+    fn into(self) -> RawExpr {
+        match self {
+            Value::VConst(v) => RawExpr::Con { val: v },
+            Value::VTuple(vs) => {
+                let es = vs
+                    .iter()
+                    .map(|v| Expr::new(Into::<RawExpr>::into(v.clone())))
+                    .collect();
+                RawExpr::Tuple { entries: es }
+            }
+            Value::VClosure(v, _) => v,
+            Value::VAny(v, _) => v,
         }
-        EApp { exp, arg } => {
-            let func = eval(store, exp);
-            let param = eval(store, arg);
-            // lhs needs to be a value, which is a lambda expression by strength reduction
-            let res = match func {
-                Lambda {
-                    arg: (var, typ),
-                    body,
-                } => {
-                    // Update the store
-                    let curr = store.current();
-                    curr.val_store.insert(var.name.clone(), param);
-                    curr.typ_store.insert(var.name, typ.typ);
-                    eval(store, &body.expr)
+    }
+}
+
+pub type Environment = HashMap<String, Value>;
+
+#[derive(Clone, Debug)]
+pub enum Value {
+    VConst(Constant),
+    VTuple(Vec<Value>),
+    VClosure(RawExpr, Environment),
+    VAny(RawExpr, Environment),
+}
+
+impl Display for Value {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Value::VConst(c) => write!(f, "{}", c),
+            Value::VTuple(vs) => {
+                write!(f, "(")?;
+                write!(f, "{}", vs[0])?;
+                for val in vs.iter().skip(1) {
+                    write!(f, "{}", val)?
                 }
-                _ => panic!("{}", TYPE_ERR_MSG),
-            };
-            res
+                write!(f, ")")
+            }
+            Value::VClosure(e, c) | Value::VAny(e, c) => {
+		write!(f, "{}", e)?;
+		if !c.is_empty() {
+		    write!(f, " where {{")?;
+		    for (k, v) in c {
+			// Only need to print the free variables in closure environment
+			if free_var(k, e) {
+			    write!(f, "{} := {}; ", k, v)?
+			}
+		    }
+		    write!(f, "}}")
+		} else {
+		    Ok(())
+		}
+	    }
         }
+    }
+}
+
+/** The evaluation function that returns the value of `expr` under the `store`, while potentially updating `store` with new bindings. */
+fn eval(env: &Environment, expr: &RawExpr) -> Value {
+    use RawExpr::*;
+    use Value::*;
+    match &expr {
+        // Constants being constants
+        Con { val } => Value::VConst(val.clone()),
+        // Yeah
+        Var { id } => env[id].clone(),
+        Let { pat, exp, body } => {
+            let mut new_env = env.clone();
+            bind_pat(exp, pat, &mut new_env);
+            eval(&new_env, body)
+        }
+        EApp { exp, arg } => match eval(env, exp) {
+            Value::VClosure(Lambda { arg: (id, _), body }, e) => {
+                let b = eval(env, arg);
+                let mut map = e.clone();
+                map.insert(id.name, b);
+                eval(&map, &body.expr)
+            }
+            _ => panic!("\n{}\n{:?}\n", expr, env),
+        },
         // TODO properly apply
         TApp { exp, arg } => {
-            if let Any { arg: t, body } = eval(store, exp) {
-                store.current().typ_store.insert(t.name, arg.typ.clone());
-                eval(store, &body.expr)
+            if let VAny(Any { arg, body }, mut env2) = eval(env, exp) {
+                eval(&mut env2, &body)
             } else {
                 panic!("{}", TYPE_ERR_MSG)
             }
         }
         Tuple { entries } => {
-            let neu = entries.iter().map(|e| Expr::new(eval(store, e))).collect();
-            Tuple { entries: neu }
+            let neu = entries.iter().map(|e| (eval(env, e))).collect();
+            Value::VTuple(neu)
         }
         Binop { lhs, op, rhs } => {
             use Binary::*;
@@ -106,116 +145,72 @@ fn eval(store: &mut Snapshot<Store>, expr: &RawExpr) -> RawExpr {
             match op {
                 // Integer arguments
                 Add | Sub | Mul | Eq | Lt | Gt | Ne => {
-                    let lhs_nf = eval(store, lhs);
-                    let rhs_nf = eval(store, rhs);
-                    if let (Con { val: Integer(l) }, Con { val: Integer(r) }) = (&lhs_nf, &rhs_nf) {
-                        match op {
-                            Add => Con {
-                                val: Integer(l + r),
-                            },
-                            Sub => Con {
-                                val: Integer(l - r),
-                            },
-                            Mul => Con {
-                                val: Integer(l * r),
-                            },
-                            Eq => Con {
-                                val: Boolean(l == r),
-                            },
-                            Lt => Con {
-                                val: Boolean(l < r),
-                            },
-                            Gt => Con {
-                                val: Boolean(l > r),
-                            },
-                            Ne => Con {
-                                val: Boolean(l != r),
-                            },
+                    let lhs_nf = eval(env, lhs);
+                    let rhs_nf = eval(env, rhs);
+                    if let (VConst(Integer(l)), VConst(Integer(r))) = (&lhs_nf, &rhs_nf) {
+                        VConst(match op {
+                            Add => Integer(l + r),
+                            Sub => Integer(l - r),
+                            Mul => Integer(l * r),
+                            Eq => Boolean(l == r),
+                            Lt => Boolean(l < r),
+                            Gt => Boolean(l > r),
+                            Ne => Boolean(l != r),
                             // Unreachable
                             _ => panic!(),
-                        }
+                        })
                     } else {
-                        Binop {
-                            lhs: Box::new(Expr::new(lhs_nf)),
-                            op: op.clone(),
-                            rhs: Box::new(Expr::new(rhs_nf)),
-                        }
+                        panic!()
                     }
                 }
                 _ => {
-                    let lhs_nf = eval(store, lhs);
-                    let rhs_nf = eval(store, rhs);
-                    if let (Con { val: Boolean(l) }, Con { val: Boolean(r) }) = (&lhs_nf, &rhs_nf) {
+                    let lhs_nf = eval(env, lhs);
+                    let rhs_nf = eval(env, rhs);
+                    if let (VConst(Boolean(l)), VConst(Boolean(r))) = (&lhs_nf, &rhs_nf) {
                         match op {
-                            And => Con {
-                                val: Boolean(l & r),
-                            },
-                            Or => Con {
-                                val: Boolean(l | r),
-                            },
+                            And => VConst(Boolean(l & r)),
+                            Or => VConst(Boolean(l | r)),
                             _ => panic!(),
                         }
                     } else {
-                        Binop {
-                            lhs: Box::new(Expr::new(lhs_nf)),
-                            op: op.clone(),
-                            rhs: Box::new(Expr::new(rhs_nf)),
-                        }
+                        panic!()
                     }
                 }
             }
         }
-        Lambda { .. } => expr.clone(),
-        Any { .. } => expr.clone(),
-        // {
-        //     store.enter();
-        //     store.current().typ_store.remove(&arg.name);
-        //     let body_new = eval(store, body);
-        //     store.exeunt();
-        //     Any {
-        //         arg: arg.clone(),
-        //         body: Box::new(Expr::new(body_new)),
-        //     }
-        // }
+        Lambda { .. } => VClosure(expr.clone(), env.clone()),
+        Any { .. } => VAny(expr.clone(), env.clone()),
         If {
             cond,
             branch_t,
             branch_f,
         } => {
-            adventure!(cond_new, eval(store, cond), store);
-            // If terminates, it should normalize to boolean constant
-            if let Con {
-                val: Constant::Boolean(b),
-            } = cond_new
-            {
+            if let VConst(Constant::Boolean(b)) = eval(&env, cond) {
                 if b {
-                    eval(store, branch_t)
+                    eval(env, branch_t)
                 } else {
-                    eval(store, branch_f)
+                    eval(env, branch_f)
                 }
             } else {
                 panic!("{}", TYPE_ERR_MSG)
             }
         }
-    };
-    debug_temp_var
+    }
 }
 
 /// Pattern matches `pat` recursively and binds to `exp`
-fn bind_pat(exp: &RawExpr, pat: &RawPattern, store: &mut Snapshot<Store>) {
+fn bind_pat(exp: &RawExpr, pat: &RawPattern, env: &mut Environment) {
     match (exp, pat) {
         (RawExpr::Tuple { entries }, RawPattern::Tuple(patterns)) => {
             // Since we type check beforehand, these two vectors must have the same length
             for (e, p) in entries.iter().zip(patterns) {
-                bind_pat(e, p, store)
+                bind_pat(e, p, env)
             }
         }
         (_, RawPattern::Wildcard(_)) => (),
-        (_, RawPattern::Binding(id, typ)) => {
-            let value = eval(store, exp);
-            let curr = store.current();
-            curr.val_store.insert(id.to_string(), value);
-            curr.typ_store.insert(id.to_string(), typ.typ.clone());
+        (_, RawPattern::Binding(id, _)) => {
+            let val = eval(env, exp);
+            env.insert(id.name.clone(), val);
         }
         _ => panic!("{}", TYPE_ERR_MSG),
     }
@@ -239,47 +234,47 @@ fn bind_pat(exp: &RawExpr, pat: &RawPattern, store: &mut Snapshot<Store>) {
 //     }
 // }
 
-// impl RawPattern {
-//     /// Whether `self` contains the variable `var`
-//     fn contains_var(&self, var: &str) -> bool {
-// 	match self {
-// 	    RawPattern::Wildcard(_) => false,
-// 	    RawPattern::Binding(v, _) => v.name == var,
-// 	    RawPattern::Tuple(pats) => pats.iter().any(|p| p.contains_var(var)),
-// 	}
-//     }
-// }
+impl RawPattern {
+    /// Whether `self` contains the variable `var`
+    fn contains_var(&self, var: &str) -> bool {
+	match self {
+	    RawPattern::Wildcard(_) => false,
+	    RawPattern::Binding(v, _) => v.name == var,
+	    RawPattern::Tuple(pats) => pats.iter().any(|p| p.contains_var(var)),
+	}
+    }
+}
 
-// /// Returns `true` iff `var` is a free variable somewhere in `expression`
-// fn free_var(var: &str, expression: &RawExpr) -> bool {
-//     use RawExpr::*;
-//     match expression {
-//         Con { .. } => false,
-//         Var { id } => id == var,
-//         Let { pat, exp, body } => {
-// 	    free_var(var, exp) |
-// 	    (!&pat.contains_var(var) & free_var(var, body))
-// 	}
-//         EApp { exp, arg } => {
-// 	    free_var(var, exp) | free_var(var, arg)
-// 	}
-//         TApp { exp, .. } => free_var(var, exp),
-//         Tuple { entries } => entries.iter().any(|e| free_var(var, e)),
-//         Binop { lhs, op: _, rhs } => {
-// 	    free_var(var, lhs) | free_var(var, rhs)
-// 	}
-//         Lambda { arg, body } => {
-// 	    (arg.0.name != var) & free_var(var, body)
-// 	}
-//         Any { arg: _, body } =>
-// 	    free_var(var, body),
-//         If { cond, branch_t, branch_f } => {
-// 	    free_var(var, cond) |
-// 	    free_var(var, branch_t) |
-// 	    free_var(var, branch_f)
-// 	}
-//     }
-// }
+/// Returns `true` iff `var` is a free variable somewhere in `expression`
+fn free_var(var: &str, expression: &RawExpr) -> bool {
+    use RawExpr::*;
+    match expression {
+        Con { .. } => false,
+        Var { id } => id == var,
+        Let { pat, exp, body } => {
+	    free_var(var, exp) |
+	    (!&pat.contains_var(var) & free_var(var, body))
+	}
+        EApp { exp, arg } => {
+	    free_var(var, exp) | free_var(var, arg)
+	}
+        TApp { exp, .. } => free_var(var, exp),
+        Tuple { entries } => entries.iter().any(|e| free_var(var, e)),
+        Binop { lhs, op: _, rhs } => {
+	    free_var(var, lhs) | free_var(var, rhs)
+	}
+        Lambda { arg, body } => {
+	    (arg.0.name != var) & free_var(var, body)
+	}
+        Any { arg: _, body } =>
+	    free_var(var, body),
+        If { cond, branch_t, branch_f } => {
+	    free_var(var, cond) |
+	    free_var(var, branch_t) |
+	    free_var(var, branch_f)
+	}
+    }
+}
 
 // /** Performs capture-avoiding substitution
 //     `expression`: The expression to perform substitute on
@@ -344,28 +339,3 @@ fn bind_pat(exp: &RawExpr, pat: &RawPattern, store: &mut Snapshot<Store>) {
 
 const TYPE_ERR_MSG: &str =
     "Type mismatch during interpretation. This shouldn't happen. Did you typecheck?";
-
-/** A struct representing the "Store"s.
-`val_store` is mapping from variable names to its (value, type) pair
-`typ_store` maps type variable names to types */
-#[derive(Clone, Default)]
-pub struct Store {
-    val_store: HashMap<String, RawExpr>,
-    typ_store: HashMap<String, RawType>,
-}
-
-impl Display for Store {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        for (k, v) in &self.val_store {
-            let t = &self.typ_store[k];
-            writeln!(f, "{k} : {t} := {v}")?
-        }
-        write!(f, "")
-    }
-}
-
-impl Store {
-    fn get_val(&self, key: &str) -> Option<&RawExpr> {
-        self.val_store.get(key)
-    }
-}

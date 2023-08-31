@@ -10,7 +10,7 @@ use crate::util::persistent::{adventure, Snapshot};
 use annotate_snippets::snippet::{AnnotationType, SourceAnnotation};
 
 /** Mapping of variable names to types. Latest element is most recent */
-pub type Context = Snapshot<HashMap<String, RawType>>;
+pub type Context = HashMap<String, RawType>;
 
 /** Type-checks the expression `expr`.
 Returns: The raw type of the checked `expr`, or `TypeError`
@@ -20,7 +20,7 @@ Returns: The raw type of the checked `expr`, or `TypeError`
  * `typ_vars`: Set of declared type variables */
 pub fn check_expr(
     expr: &Expr,
-    val_ctxt: &mut Context,
+    val_ctxt: &mut Snapshot<Context>,
     typ_vars: &mut Snapshot<HashSet<String>>,
 ) -> Result<RawType, TypeError> {
     use RawExpr::*;
@@ -239,15 +239,16 @@ Returns: `Ok` if everything is fine, or `TypeError` otherwise.
 # Arguments
  * `decl`: The declaration to check
  * `val_ctxt`: Persistent mapping from variable names to raw type */
-pub fn check_decl<'ast>(decl: &'ast Decl, val_ctxt: &mut Context) -> Result<(), TypeError> {
+pub fn check_decl<'ast>(decl: &'ast Decl, ctxt: &mut Context) -> Result<(), TypeError> {
+    let mut val_ctxt = Snapshot::new(ctxt.clone());
     val_ctxt.enter();
     let mut typ_vars_persist = Snapshot::default();
-    let check_result = check_expr(&decl.body, val_ctxt, &mut typ_vars_persist);
+    let check_result = check_expr(&decl.body, &mut val_ctxt, &mut typ_vars_persist);
     val_ctxt.exeunt();
     match check_result {
         Ok(typ) => {
             if alpha_equiv(&typ, &decl.sig.typ) {
-                val_ctxt.current().insert(decl.id.clone(), typ);
+                ctxt.insert(decl.id.clone(), typ);
                 Ok(())
             } else {
                 Err(TypeError {
@@ -270,10 +271,8 @@ Returns: `Ok` if everything is fine, or `TypeError` otherwise.
 # Arguments
  * `prog`: The prog to check */
 pub fn check_prog<'ast>(prog: &'ast Prog) -> Result<(), TypeError> {
-    let mut val_ctxt = Context::default();
-    let declarations = &prog.declarations;
     for id in &prog.order {
-        check_decl(&declarations[id], &mut val_ctxt)?
+        check_decl(&prog.declarations[id], &mut Default::default())?
     }
     Ok(())
 }
@@ -377,7 +376,7 @@ Adds binding to `ctxt` along the way
 fn traverse_pat(
     pat: &Pattern,
     vars: &mut HashSet<String>,
-    ctxt: &mut Context,
+    ctxt: &mut Snapshot<Context>,
 ) -> Result<RawType, TypeError> {
     match &pat.pat {
         RawPattern::Binding(ident, typ) => {
