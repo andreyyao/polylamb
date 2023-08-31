@@ -1,10 +1,9 @@
 use rustyline::error::ReadlineError;
 use rustyline::{DefaultEditor, Result};
 
-use crate::util::persistent::Snapshot;
-
-use super::interp::{eval_decl, eval_closed_expr};
+use super::interp::{eval_decl, eval_expr, Environment};
 use super::parse::{parse_decl, parse_expr};
+use super::semant::Context;
 
 pub fn repl() -> Result<()> {
     // `()` can be used when no completer is required
@@ -13,7 +12,8 @@ pub fn repl() -> Result<()> {
     if rl.load_history("history.txt").is_err() {
         println!("No previous history.");
     }
-    // let mut store = Snapshot::default();
+    let mut env = Environment::default();
+    let mut ctxt = Context::default();
     loop {
         let readline = rl.readline("λ2 >> ");
         match &readline {
@@ -26,21 +26,20 @@ pub fn repl() -> Result<()> {
                             println!("See ya!");
                             break;
                         }
-                        "#context" => {
-			    todo!()
-                            // println!("\n{}", store.current())
-                        }
+                        "#context" => print_context(&env, &ctxt),
                         _ => println!("Unknown command"),
                     }
                 } else {
                     match parse_decl(input) {
-                        Ok(decl) => todo!(),
-			//     match eval_decl(&decl, &mut store) {
-                        //     Ok(_) => (),
-                        //     Err(typ_err) => println!("{}", typ_err.title),
-                        // },
+                        Ok(decl) => match eval_decl(&decl, &mut ctxt, &mut env) {
+                            Ok(_) => (),
+                            Err(typ_err) => println!("{}", typ_err.title),
+                        },
                         Err(_) => match parse_expr(input) {
-                            Ok(expr) => println!("{}", eval_closed_expr(&expr)),
+                            Ok(expr) => match eval_expr(&expr, &mut ctxt, &mut env) {
+                                Ok(closure) => println!("{}", closure),
+                                Err(typ_err) => println!("{}", typ_err.title),
+                            },
                             Err(parse_err) => println!("{}", parse_err),
                         },
                     }
@@ -63,6 +62,12 @@ pub fn repl() -> Result<()> {
     #[cfg(feature = "with-file-history")]
     rl.save_history("history.txt");
     Ok(())
+}
+
+fn print_context(env: &Environment, ctxt: &Context) {
+    for (k, v) in ctxt {
+        println!("{} : {} := {}", k, v, env[k])
+    }
 }
 
 const HELP_MESSAGE: &str = r#"
