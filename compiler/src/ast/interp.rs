@@ -1,7 +1,7 @@
 use crate::ast::ast::{Binary, Constant, Expr, RawExpr, RawPattern};
 use crate::util::persistent::Snapshot;
 /** Interpreting for the System F AST */
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fmt::Display;
 
 use super::ast::{Decl, Prog};
@@ -248,46 +248,55 @@ fn bind_pat(clo: &Value, pat: &RawPattern, env: &mut Environment) {
 
 impl RawPattern {
     /// Whether `self` contains the variable `var`
-    fn _contains_var(&self, var: &str) -> bool {
+    fn bindings<'ast>(&'ast self) -> Vec<&'ast str> {
 	match self {
-	    RawPattern::Wildcard(_) => false,
-	    RawPattern::Binding(v, _) => v.name == var,
-	    RawPattern::Tuple(pats) => pats.iter().any(|p| p._contains_var(var)),
+	    RawPattern::Wildcard(_) => vec![],
+	    RawPattern::Binding(v, _) => vec![v.name.as_str()],
+	    RawPattern::Tuple(pats) => pats.iter().fold(vec![], |acc, p| [p.bindings(), acc].concat()),
 	}
     }
 }
 
-/// Returns `true` iff `var` is a free variable somewhere in `expression`
-fn _free_var(var: &str, expression: &RawExpr) -> bool {
+/// Returns a set of free variables
+fn fv<'ast>(expression: &'ast RawExpr) -> HashSet<&'ast str> {
     use RawExpr::*;
     match expression {
-        Con { .. } => false,
-        Var { id } => id == var,
+        Con { .. } => HashSet::new(),
+        Var { id } => HashSet::from([ id.as_str() ]),
         Let { pat, exp, body } => {
-	    _free_var(var, exp) |
-	    (!&pat._contains_var(var) & _free_var(var, body))
+	    fv(exp).union(&(&fv(body) - &pat.bindings().into_iter().collect())).copied().collect()
 	}
 	Fix { funcs, body } => {
-	    funcs.iter().all(|f| (f.0.name != var) & (f.1.name != var)) &
-		_free_var(var, body)
+	    let mut set = HashSet::new();
+	    funcs.iter().for_each(|(_, v, _, _, bod)| {
+		let mut fun_set = fv(&bod);
+		fun_set.remove(v.name.as_str());
+		set.extend(fv(&bod));
+	    });
+	    set.extend(fv(&body));
+	    funcs.iter().for_each(|(f, _, _, _, _)| {
+		set.remove(f.name.as_str());
+	    });
+	    set
 	}
-        EApp { exp, arg } => {
-	    _free_var(var, exp) | _free_var(var, arg)
-	}
-        TApp { exp, .. } => _free_var(var, exp),
-        Tuple { entries } => entries.iter().any(|e| _free_var(var, e)),
-        Binop { lhs, op: _, rhs } => {
-	    _free_var(var, lhs) | _free_var(var, rhs)
-	}
+        EApp { exp, arg } => fv(exp).union(&fv(arg)).copied().collect(),
+        TApp { exp, .. } => fv(exp),
+        Tuple { entries } => {
+	    let mut set = HashSet::new();
+	    entries.iter().for_each(|e| set.extend(fv(e)));
+	    set
+	},
+        Binop { lhs, op: _, rhs } =>
+	    fv(lhs).union(&fv(rhs)).copied().collect(),
         Lambda { arg, body } => {
-	    (arg.0.name != var) & _free_var(var, body)
+	    let mut set = fv(body);
+	    set.remove(arg.0.name.as_str());
+	    set
 	}
         Any { arg: _, body } =>
-	    _free_var(var, body),
+	    fv(body),
         If { cond, branch_t, branch_f } => {
-	    _free_var(var, cond) |
-	    _free_var(var, branch_t) |
-	    _free_var(var, branch_f)
+	    fv(cond).union(&fv(branch_t)).copied().collect::<HashSet<_, _>>().union(&fv(branch_f)).copied().collect()
 	}
     }
 }
