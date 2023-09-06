@@ -86,21 +86,21 @@ impl Display for Value {
                 write!(f, ")")
             }
             Value::VClosure(e, c) | Value::VAny(e, c) => {
-		write!(f, "{}", e)?;
-		if !c.is_empty() {
-		    write!(f, " <<with closure>>")
-		    // write!(f, " where {{")?;
-		    // for (k, v) in c {
-		    // 	// Only need to print the free variables in closure environment
-		    // 	if free_var(k, e) {
-		    // 	    write!(f, "{} := {}; ", k, v)?
-		    // 	}
-		    // }
-		    // write!(f, "}}")
-		} else {
-		    Ok(())
-		}
-	    }
+                write!(f, "{}", e)?;
+                if !c.is_empty() {
+                    write!(f, " <<with closure>>")
+                    // write!(f, " where {{")?;
+                    // for (k, v) in c {
+                    // 	// Only need to print the free variables in closure environment
+                    // 	if free_var(k, e) {
+                    // 	    write!(f, "{} := {}; ", k, v)?
+                    // 	}
+                    // }
+                    // write!(f, "}}")
+                } else {
+                    Ok(())
+                }
+            }
         }
     }
 }
@@ -117,20 +117,24 @@ fn eval(env: &Environment, expr: &RawExpr) -> Value {
         Var { id } => env[id].clone(),
         Let { pat, exp, body } => {
             let mut new_env = env.clone();
-	    let tup = eval(env, exp);
+            let tup = eval(env, exp);
             bind_pat(&tup, pat, &mut new_env);
             eval(&new_env, body)
         }
-	Fix { funcs, body } => {
-	    // This case is tricky
-	    let mut new_env = env.clone();
-	    for (f, v, t, _, bod) in funcs {
-		let lam = RawExpr::Lambda { arg: (v.clone(), t.clone()), body: Box::new(bod.clone()) };
-		let closure = eval(&new_env, &lam);
-		new_env.insert(f.name.clone(), closure);
-	    }
-	    eval(&new_env, body)
-	}
+        Fix { funcs, body } => {
+	    todo!();
+            // This case is tricky
+            let mut new_env = env.clone();
+            for (f, v, t, _, bod) in funcs {
+                let lam = RawExpr::Lambda {
+                    arg: (v.clone(), t.clone()),
+                    body: Box::new(bod.clone()),
+                };
+                let closure = eval(&new_env, &lam);
+                new_env.insert(f.name.clone(), closure);
+            }
+            eval(&new_env, body)
+        }
         EApp { exp, arg } => match eval(env, exp) {
             Value::VClosure(Lambda { arg: (id, _), body }, e) => {
                 let b = eval(env, arg);
@@ -249,11 +253,13 @@ fn bind_pat(clo: &Value, pat: &RawPattern, env: &mut Environment) {
 impl RawPattern {
     /// Whether `self` contains the variable `var`
     fn bindings<'ast>(&'ast self) -> Vec<&'ast str> {
-	match self {
-	    RawPattern::Wildcard(_) => vec![],
-	    RawPattern::Binding(v, _) => vec![v.name.as_str()],
-	    RawPattern::Tuple(pats) => pats.iter().fold(vec![], |acc, p| [p.bindings(), acc].concat()),
-	}
+        match self {
+            RawPattern::Wildcard(_) => vec![],
+            RawPattern::Binding(v, _) => vec![v.name.as_str()],
+            RawPattern::Tuple(pats) => pats
+                .iter()
+                .fold(vec![], |acc, p| [p.bindings(), acc].concat()),
+        }
     }
 }
 
@@ -262,42 +268,57 @@ fn fv<'ast>(expression: &'ast RawExpr) -> HashSet<&'ast str> {
     use RawExpr::*;
     match expression {
         Con { .. } => HashSet::new(),
-        Var { id } => HashSet::from([ id.as_str() ]),
-        Let { pat, exp, body } => {
-	    fv(exp).union(&(&fv(body) - &pat.bindings().into_iter().collect())).copied().collect()
-	}
-	Fix { funcs, body } => {
-	    let mut set = HashSet::new();
-	    funcs.iter().for_each(|(_, v, _, _, bod)| {
-		let mut fun_set = fv(&bod);
-		fun_set.remove(v.name.as_str());
-		set.extend(fv(&bod));
-	    });
-	    set.extend(fv(&body));
-	    funcs.iter().for_each(|(f, _, _, _, _)| {
-		set.remove(f.name.as_str());
-	    });
-	    set
-	}
+        Var { id } => HashSet::from([id.as_str()]),
+        Let { pat, exp, body } => fv(exp)
+            .union(&(&fv(body) - &pat.bindings().into_iter().collect()))
+            .copied()
+            .collect(),
+        Fix { funcs, body } => {
+            let mut set = HashSet::new();
+            funcs.iter().for_each(|(_, v, _, _, bod)| {
+                let mut fun_set = fv(&bod);
+                fun_set.remove(v.name.as_str());
+                set.extend(fv(&bod));
+            });
+            set.extend(fv(&body));
+            funcs.iter().for_each(|(f, _, _, _, _)| {
+                set.remove(f.name.as_str());
+            });
+            set
+        }
         EApp { exp, arg } => fv(exp).union(&fv(arg)).copied().collect(),
         TApp { exp, .. } => fv(exp),
         Tuple { entries } => {
-	    let mut set = HashSet::new();
-	    entries.iter().for_each(|e| set.extend(fv(e)));
-	    set
-	},
-        Binop { lhs, op: _, rhs } =>
-	    fv(lhs).union(&fv(rhs)).copied().collect(),
+            let mut set = HashSet::new();
+            entries.iter().for_each(|e| set.extend(fv(e)));
+            set
+        }
+        Binop { lhs, op: _, rhs } => fv(lhs).union(&fv(rhs)).copied().collect(),
         Lambda { arg, body } => {
-	    let mut set = fv(body);
-	    set.remove(arg.0.name.as_str());
-	    set
-	}
-        Any { arg: _, body } =>
-	    fv(body),
-        If { cond, branch_t, branch_f } => {
-	    fv(cond).union(&fv(branch_t)).copied().collect::<HashSet<_, _>>().union(&fv(branch_f)).copied().collect()
-	}
+            let mut set = fv(body);
+            set.remove(arg.0.name.as_str());
+            set
+        }
+        Any { arg: _, body } => fv(body),
+        If {
+            cond,
+            branch_t,
+            branch_f,
+        } => fv(cond)
+            .union(&fv(branch_t))
+            .copied()
+            .collect::<HashSet<_, _>>()
+            .union(&fv(branch_f))
+            .copied()
+            .collect(),
+    }
+}
+
+/// Extends the closure value with the environment
+fn extend(val: &mut Value, env: Environment) {
+    match val {
+        Value::VConst(_) | Value::VTuple(_) => (),
+        Value::VClosure(_, en) | Value::VAny(_, en) => en.extend(env),
     }
 }
 

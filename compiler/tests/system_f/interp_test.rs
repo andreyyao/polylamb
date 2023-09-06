@@ -56,9 +56,8 @@ const LET: &[&str] = &[
        quad[Int] plus_one 3"#,
 ];
 
-const FIX: &[&str] = &[
-    "fix fact = lambda (x:Int) -> Int. if x > 0 then x * fact (x - 1) else 1 in fact 5"
-];
+const FIX: &[&str] =
+    &["fix fact = lambda (x:Int) -> Int. if x > 0 then x * fact (x - 1) else 1 in fact 5"];
 
 #[test]
 fn test_snippets() {
