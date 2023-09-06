@@ -57,7 +57,7 @@ const LET: &[&str] = &[
 ];
 
 const FIX: &[&str] =
-    &["fix fact = lambda (x:Int) -> Int. if x > 0 then x * fact (x - 1) else 1 in fact 5"];
+    &["fix fact = lambda (x:Int) -> Int. if x > 0 then x * fact (x - 1) else 1 in fact 10"];
 
 #[test]
 fn test_snippets() {

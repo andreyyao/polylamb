@@ -66,7 +66,7 @@ pub fn repl() -> Result<()> {
 
 fn print_context(env: &Environment, ctxt: &Context) {
     for (k, v) in ctxt {
-        println!("{} : {} := {}", k, v, env[k])
+        println!("{} : {} := {}", k, v, *env[k].borrow())
     }
 }
 

@@ -1,8 +1,12 @@
 use crate::ast::ast::{Binary, Constant, Expr, RawExpr, RawPattern};
 use crate::util::persistent::Snapshot;
+use std::borrow::BorrowMut;
+use std::cell::RefCell;
 /** Interpreting for the System F AST */
 use std::collections::{HashMap, HashSet};
 use std::fmt::Display;
+use std::ops::Deref;
+use std::rc::Rc;
 
 use super::ast::{Decl, Prog};
 use super::error::TypeError;
@@ -26,7 +30,7 @@ pub fn eval_decl(
     environment: &mut Environment,
 ) -> Result<(), TypeError> {
     check_decl(&decl, context)?;
-    environment.insert(decl.id.clone(), eval(environment, &decl.body));
+    environment.insert(decl.id.clone(), Rc::new(RefCell::new(eval(environment, &decl.body))));
     Ok(())
 }
 
@@ -63,7 +67,7 @@ impl Into<RawExpr> for Value {
     }
 }
 
-pub type Environment = HashMap<String, Value>;
+pub type Environment = HashMap<String, Rc<RefCell<Value>>>;
 
 #[derive(Clone, Debug)]
 pub enum Value {
@@ -109,12 +113,12 @@ impl Display for Value {
 fn eval(env: &Environment, expr: &RawExpr) -> Value {
     use RawExpr::*;
     use Value::*;
-    println!("Evaluating {} in {:?}", expr, env.keys());
+    // println!("Evaluating {} in {:?}", expr, env.keys());
     match &expr {
         // Constants being constants
         Con { val } => Value::VConst(val.clone()),
         // Yeah
-        Var { id } => env[id].clone(),
+        Var { id } => env[id].borrow().clone(),
         Let { pat, exp, body } => {
             let mut new_env = env.clone();
             let tup = eval(env, exp);
@@ -122,8 +126,6 @@ fn eval(env: &Environment, expr: &RawExpr) -> Value {
             eval(&new_env, body)
         }
         Fix { funcs, body } => {
-	    todo!();
-            // This case is tricky
             let mut new_env = env.clone();
             for (f, v, t, _, bod) in funcs {
                 let lam = RawExpr::Lambda {
@@ -131,7 +133,13 @@ fn eval(env: &Environment, expr: &RawExpr) -> Value {
                     body: Box::new(bod.clone()),
                 };
                 let closure = eval(&new_env, &lam);
-                new_env.insert(f.name.clone(), closure);
+                new_env.insert(f.name.clone(), Rc::new(RefCell::new(closure)));
+            }
+	    for (f, _, _, _, _) in funcs {
+		let clo_f = new_env[f.name.as_str()].clone();
+		for (f1, _, _, _, _) in funcs {
+		    extend(&clo_f, &new_env)
+		}
             }
             eval(&new_env, body)
         }
@@ -139,7 +147,7 @@ fn eval(env: &Environment, expr: &RawExpr) -> Value {
             Value::VClosure(Lambda { arg: (id, _), body }, e) => {
                 let b = eval(env, arg);
                 let mut map = e.clone();
-                map.insert(id.name, b);
+                map.insert(id.name, Rc::new(RefCell::new(b)));
                 eval(&map, &body.expr)
             }
             _ => panic!("\n{}\n{:?}\n", expr, env),
@@ -226,7 +234,7 @@ fn bind_pat(clo: &Value, pat: &RawPattern, env: &mut Environment) {
         }
         (_, RawPattern::Wildcard(_)) => (),
         (_, RawPattern::Binding(id, _)) => {
-            env.insert(id.name.clone(), clo.clone());
+            env.insert(id.name.clone(), Rc::new(RefCell::new(clo.clone())));
         }
         _ => panic!("{}", TYPE_ERR_MSG),
     }
@@ -315,10 +323,11 @@ fn fv<'ast>(expression: &'ast RawExpr) -> HashSet<&'ast str> {
 }
 
 /// Extends the closure value with the environment
-fn extend(val: &mut Value, env: Environment) {
-    match val {
+fn extend(val: &Rc<RefCell<Value>>, env: &Environment) {
+    let mut borrow_mut_val = RefCell::borrow_mut(val);
+    match *borrow_mut_val {
         Value::VConst(_) | Value::VTuple(_) => (),
-        Value::VClosure(_, en) | Value::VAny(_, en) => en.extend(env),
+        Value::VClosure(_, ref mut en) | Value::VAny(_, ref mut en) => en.extend(env.clone()),
     }
 }
 
