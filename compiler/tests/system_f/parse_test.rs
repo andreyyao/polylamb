@@ -26,6 +26,10 @@ const IFS: &[&str] = &[
     "if (0,0,9999 + 8,9) then hehehehe else (not 1 + 2)",
 ];
 
+const FIX: &[&str] = &[
+    "fix fact = lambda (x:Int) -> Int. if x > 0 then x * fact (x - 1) else 1 in fact 10"
+];
+
 const DECLS: &[&str] = &[
     "let x: Int = 1",
     "let xx: Hehe_2_w = (true && false + -1048)",
@@ -79,6 +83,11 @@ fn check_exprs() {
         println!("{}", exp);
         assert_matches!(exp, RawExpr::If { .. })
     }
+    for s in FIX {
+	let exp = raw_expr_of(s);
+        println!("{}", exp);
+        assert_matches!(exp, RawExpr::Fix { .. })
+    }
 }
 
 #[test]
@@ -100,7 +109,7 @@ fn check_decls() {
 // Check pretty-printing emits the same AST when parsed back
 #[test]
 fn check_pretty_print() {
-    for s in LITERALS.iter().chain(BINOPS).chain(IFS) {
+    for s in LITERALS.iter().chain(BINOPS).chain(IFS).chain(FIX) {
 	let first_parse = raw_expr_of(s);
 	let first_print = first_parse.to_string();
 	let second_parse = raw_expr_of(first_print.as_str());

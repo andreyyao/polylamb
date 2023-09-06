@@ -32,8 +32,9 @@ extern {
         "then"      => lex::Token::Then,
         "else"      => lex::Token::Else,
         "let"       => lex::Token::Let,
+	"fix"       => lex::Token::Fix,
+	"and"       => lex::Token::And,
         "in"        => lex::Token::In,
-        "end"       => lex::Token::End,
         "any"       => lex::Token::Any,
         "lambda"    => lex::Token::Lambda,
         "forall"    => lex::Token::Forall,
@@ -89,7 +90,15 @@ ValExprLet: Expr = {
 	        pat, exp: Box::new(e1), body: Box::new(e2)
 	    },
 	    span: Some((l, r))
+	},
+    <l: @L> "fix" <fs: Sep<Fixhelp, "and">> "in" <e: ValExpr> <r: @R> => {
+        Expr {
+	    expr: RawExpr::Fix{
+	        funcs: fs, body: Box::new(e)
+	    },
+	    span: Some((l, r))
 	}
+    }
 }
 
 // ValExprMatch: Expr = {
@@ -263,6 +272,11 @@ TypExprAtom: Type = {
 // Argument
 Argument: (Ident, Type) = {
     "(" <v: EIdent> ":" <t: TypExpr> ")" => (v, t)
+}
+
+// Help for fixpoint
+Fixhelp: (Ident, Ident, Type, Type, Expr) = {
+    <f: EIdent> "=" "lambda" "(" <v: EIdent> ":" <t1: TypExpr> ")" "->" <t2: TypExpr> "." <e: ValExpr> => (f, v, t1, t2, e)
 }
 
 // Pattern

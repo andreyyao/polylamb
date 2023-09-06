@@ -56,6 +56,12 @@ pub enum RawExpr {
         exp: Box<Expr>,
         body: Box<Expr>,
     },
+    /// Recursive functions
+    Fix {
+	/// triples of (Func name, var name, var type, body, return type)
+	funcs: Vec<(Ident, Ident, Type, Type, Expr)>,
+	body: Box<Expr>
+    },
     /// Expression function application
     EApp { exp: Box<Expr>, arg: Box<Expr> },
     /// Type concretization, ex. `f [Int]`
@@ -305,9 +311,9 @@ impl Display for RawExpr {
         /// Parenths over composite expressions to disambiguate
         fn fmt_composite(exp: &Expr, ff: &mut fmt::Formatter) -> fmt::Result {
             if exp.is_atomic() {
-                write!(ff, "{exp}")
+                write!(ff, "{}", exp)
             } else {
-                write!(ff, "({exp})")
+                write!(ff, "({})", exp)
             }
         }
 
@@ -315,6 +321,14 @@ impl Display for RawExpr {
             RawExpr::Con { val } => write!(f, "{}", val.to_string().yellow()),
             RawExpr::Var { id } => write!(f, "{}", id.to_string().red()),
             RawExpr::Let { pat, exp, body } => write!(f, "let {pat} = {exp} in {body}"),
+	    RawExpr::Fix { funcs, body } => {
+		let (f_name, v_name, v_typ, ret_typ, exp) = &funcs[0];
+		write!(f, "fix {} = λ ({}:{}) -> {}. {}", f_name, v_name, v_typ, ret_typ, exp)?;
+		for (f_name, v_name, v_typ, ret_typ, exp) in funcs.iter().skip(1) {
+		    write!(f, " and {} = λ ({}:{}) -> {}. {}", f_name, v_name, v_typ, ret_typ, exp)?;
+		}
+		write!(f, " in {}", body)
+	    },
             RawExpr::EApp { exp, arg } => write!(f, "({exp} {arg})"),
             RawExpr::TApp { exp, arg } => write!(f, "({exp}[{arg}])"),
             RawExpr::Tuple { entries } => {

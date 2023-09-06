@@ -8,7 +8,7 @@
 
 \date{\vspace{-5ex}}
 \author{\vspace{-5ex}}
-\title{System F Language Specification}
+\title{Polylamb Language Specification}
 
 \newcommand{\gm}[1]{$#1$} %Grammars are italicized
 \newcommand{\kwt}[1]{\textbf{\texttt{#1}}} % Keywords in Text mode
@@ -25,22 +25,23 @@
 \begin{document}
 \maketitle
 
-\section*{Syntax}
-\subsection*{Expressions}
+\section{Syntax}
+\subsection{Expressions}
 \begin{figure}[h]
   \centering
   \begin{tabular}{l p{\ColOne} p{\ColTwo} p{\ColThree} p{\ColFour}}
     \hline
     \row{e}{\gm{l}}{literals}
-    \newrow{\gm{v}}{expression identifier}
+    \newrow{\gm{v}}{variables (lowercase)}
     \newrow{\kwt{(}\gm{e}\kwt{)}}{parenthesized}
-    \newrow{\gm{e}\kwt{[}\gm{\tau}\kwt{]}}{type concretization}
+    \newrow{\gm{e}\kwt{[}\gm{\tau}\kwt{]}}{type application}
     \newrow{\gm{e_1} \gm{e_2}}{application}
     \newrow{\gm{e_1} \gm{op} \gm{e_2}}{binary operation}
     \newrow{\kwt{(}\gm{e_1}, \gm{\dots}, \gm{e_n}\kwt{)}}{$n$-tuples, $n\geq 2$}
     \newrow{\kwm{\lambda} \gm{v}\kwt{:}\gm{\tau}\kwt{.} \gm{e}}{lambda abstraction\footnotemark[1]}
     \newrow{\kwm{\Lambda} \gm{t}\kwt{.} \gm{e}}{type abstraction\footnotemark[2]}
     \newrow{\kwt{let} \gm{p} \kwt{=} \gm{e_1} \kwt{in} \gm{e_2}}{let binding}
+    \newrow{\kwt{fix} \gm{f} \kwt{=} \kwm{\lambda} \kwt{(}\gm{v}\kwt{:}\gm{\tau}\kwt{)} \kwt{->} \gm{\tau'}\kwt{.} \gm{e} \kwt{in} \gm{e'}}{recursive functions\footnotemark[3]}
     \newrow{\kwt{if} \gm{e_1} \kwt{then} \gm{e_2} \kwt{else} \gm{e_3}}{if expression}
     \hline
     \row{l}{\kwt{null}}{unit literal: \kwt{Unit}}
@@ -51,22 +52,25 @@
     \newrow{\gm{v} \kwt{:} \gm{\tau}}{single argument}
     \newrow{\kwt{(}\gm{p_1}, \dots, \gm{p_n}\kwt{)}}{$n$-tuple destructor, $n\geq 2$}
     \hline
+    \row{op}{\kwt{\&} $|$ \kwt{|} $|$ \kwt{<} $|$ \kwt{=} $|$ \kwt{>} $|$ \kwt{+} $|$ \kwt{-} $|$ \kwt{*}}{binary operations}
+    \hline
   \end{tabular}
 \end{figure}
 \footnotetext[1]{One can also denote a curried multi-argument function with the syntax \kwm{\lambda} \kwt{(}\gm{v_1}\kwt{:}\gm{t_1}\kwt{)} \gm{\dots} \kwt{(}\gm{v_n}\kwt{:}\gm{t_n}\kwt{)}\kwt{.} \gm{e}, which desugars to $n$ nested lambda expressions. Note that in this case, parentheses are needed around each annotated argument.}
 \footnotetext[2]{Similarly, \kwm{\Lambda} \gm{t_1} \gm{\dots} \gm{t_n}\kwt{.} \gm{e} is $n$ nested type abstractions.}
+\footnotetext[3]{To define mutually recursive functions, connect the definitions using the keyword \kwt{and}. For example, one can have \kwt{fix} \gm{f_1} \kwt{=} \kwm{\lambda} \kwt{(}\gm{v_1}\kwt{:}\gm{\tau_1}\kwt{)} \kwt{->} \gm{\tau_1'}\kwt{.} \gm{e_1} \kwt{and} \kwt{\dots} \kwt{and} \gm{f_n} \kwt{=} \kwm{\lambda} \kwt{(}\gm{v_n}\kwt{:}\gm{\tau_n}\kwt{)} \kwt{->} \gm{\tau_n'}\kwt{.} \gm{e_n} \kwt{in} \gm{e'}}
 
 
-\subsection*{Types}
+\subsection{Types}
 
 \begin{figure}[h]
   \centering
   \begin{tabular}{l p{\ColOne} p{\ColTwo} p{\ColThree} p{\ColFour}}
     \hline
-    \row{\tau}{\gm{t}}{type identifier}
+    \row{\tau}{\gm{T}}{type variable (uppercase)}
     \newrow{\kwt{(}\gm{\tau}\kwt{)}}{parenthesized}
     \newrow{\gm{\tau_1} \kwt{->} \gm{\tau_2}}{arrow types}
-    \newrow{\kwm{\,\forall} \gm{t}\kwt{.} \gm{\tau}}{universal types}
+    \newrow{\kwm{\,\forall} \gm{T}\kwt{.} \gm{\tau}}{universal types}
     \newrow{\gm{\tau_1} \kwm{*} \gm{\dots} \kwm{*} \gm{\tau_n}}{tuple types, $n\geq 2$}
     \newrow{\kwt{Int} $|$ \kwt{Bool} $|$ \kwt{Unit}}{built-in types}
     \hline

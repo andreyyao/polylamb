@@ -51,9 +51,13 @@ const ANY: &[&str] = &[
 
 const LET: &[&str] = &[
     r#"let twice: forall T. (T -> T) -> (T -> T) = any T. \ f: T -> T. \ x: T. f (f x) in
-       let let quad: forall T. (T -> T) -> (T -> T) = any T. lambda f: T -> T. \ x: T. twice[T] f x in
+       let quad: forall T. (T -> T) -> (T -> T) = any T. lambda f: T -> T. \ x: T. twice[T] f x in
        let plus_one: Int -> Int = lambda x: Int. x + 1 in
        quad[Int] plus_one 3"#,
+];
+
+const FIX: &[&str] = &[
+    "fix fact = lambda (x:Int) -> Int. if x > 0 then x * fact (x - 1) else 1 in fact 5"
 ];
 
 #[test]
@@ -64,7 +68,8 @@ fn test_snippets() {
         .chain(LAMBDA)
         .chain(APP)
         .chain(ANY)
-        .chain(LET);
+        .chain(LET)
+        .chain(FIX);
     for expr_string in everything {
         println!("{}", expr_string);
         let exp = parse_expr(expr_string).unwrap();

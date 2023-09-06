@@ -81,21 +81,22 @@ impl Display for Value {
                 write!(f, "(")?;
                 write!(f, "{}", vs[0])?;
                 for val in vs.iter().skip(1) {
-                    write!(f, "{}", val)?
+                    write!(f, ", {}", val)?
                 }
                 write!(f, ")")
             }
             Value::VClosure(e, c) | Value::VAny(e, c) => {
 		write!(f, "{}", e)?;
 		if !c.is_empty() {
-		    write!(f, " where {{")?;
-		    for (k, v) in c {
-			// Only need to print the free variables in closure environment
-			if free_var(k, e) {
-			    write!(f, "{} := {}; ", k, v)?
-			}
-		    }
-		    write!(f, "}}")
+		    write!(f, " <<with closure>>")
+		    // write!(f, " where {{")?;
+		    // for (k, v) in c {
+		    // 	// Only need to print the free variables in closure environment
+		    // 	if free_var(k, e) {
+		    // 	    write!(f, "{} := {}; ", k, v)?
+		    // 	}
+		    // }
+		    // write!(f, "}}")
 		} else {
 		    Ok(())
 		}
@@ -108,6 +109,7 @@ impl Display for Value {
 fn eval(env: &Environment, expr: &RawExpr) -> Value {
     use RawExpr::*;
     use Value::*;
+    println!("Evaluating {} in {:?}", expr, env.keys());
     match &expr {
         // Constants being constants
         Con { val } => Value::VConst(val.clone()),
@@ -115,9 +117,20 @@ fn eval(env: &Environment, expr: &RawExpr) -> Value {
         Var { id } => env[id].clone(),
         Let { pat, exp, body } => {
             let mut new_env = env.clone();
-            bind_pat(exp, pat, &mut new_env);
+	    let tup = eval(env, exp);
+            bind_pat(&tup, pat, &mut new_env);
             eval(&new_env, body)
         }
+	Fix { funcs, body } => {
+	    // This case is tricky
+	    let mut new_env = env.clone();
+	    for (f, v, t, _, bod) in funcs {
+		let lam = RawExpr::Lambda { arg: (v.clone(), t.clone()), body: Box::new(bod.clone()) };
+		let closure = eval(&new_env, &lam);
+		new_env.insert(f.name.clone(), closure);
+	    }
+	    eval(&new_env, body)
+	}
         EApp { exp, arg } => match eval(env, exp) {
             Value::VClosure(Lambda { arg: (id, _), body }, e) => {
                 let b = eval(env, arg);
@@ -199,9 +212,9 @@ fn eval(env: &Environment, expr: &RawExpr) -> Value {
 }
 
 /// Pattern matches `pat` recursively and binds to `exp`
-fn bind_pat(exp: &RawExpr, pat: &RawPattern, env: &mut Environment) {
-    match (exp, pat) {
-        (RawExpr::Tuple { entries }, RawPattern::Tuple(patterns)) => {
+fn bind_pat(clo: &Value, pat: &RawPattern, env: &mut Environment) {
+    match (clo, pat) {
+        (Value::VTuple(entries), RawPattern::Tuple(patterns)) => {
             // Since we type check beforehand, these two vectors must have the same length
             for (e, p) in entries.iter().zip(patterns) {
                 bind_pat(e, p, env)
@@ -209,8 +222,7 @@ fn bind_pat(exp: &RawExpr, pat: &RawPattern, env: &mut Environment) {
         }
         (_, RawPattern::Wildcard(_)) => (),
         (_, RawPattern::Binding(id, _)) => {
-            let val = eval(env, exp);
-            env.insert(id.name.clone(), val);
+            env.insert(id.name.clone(), clo.clone());
         }
         _ => panic!("{}", TYPE_ERR_MSG),
     }
@@ -236,42 +248,46 @@ fn bind_pat(exp: &RawExpr, pat: &RawPattern, env: &mut Environment) {
 
 impl RawPattern {
     /// Whether `self` contains the variable `var`
-    fn contains_var(&self, var: &str) -> bool {
+    fn _contains_var(&self, var: &str) -> bool {
 	match self {
 	    RawPattern::Wildcard(_) => false,
 	    RawPattern::Binding(v, _) => v.name == var,
-	    RawPattern::Tuple(pats) => pats.iter().any(|p| p.contains_var(var)),
+	    RawPattern::Tuple(pats) => pats.iter().any(|p| p._contains_var(var)),
 	}
     }
 }
 
 /// Returns `true` iff `var` is a free variable somewhere in `expression`
-fn free_var(var: &str, expression: &RawExpr) -> bool {
+fn _free_var(var: &str, expression: &RawExpr) -> bool {
     use RawExpr::*;
     match expression {
         Con { .. } => false,
         Var { id } => id == var,
         Let { pat, exp, body } => {
-	    free_var(var, exp) |
-	    (!&pat.contains_var(var) & free_var(var, body))
+	    _free_var(var, exp) |
+	    (!&pat._contains_var(var) & _free_var(var, body))
+	}
+	Fix { funcs, body } => {
+	    funcs.iter().all(|f| (f.0.name != var) & (f.1.name != var)) &
+		_free_var(var, body)
 	}
         EApp { exp, arg } => {
-	    free_var(var, exp) | free_var(var, arg)
+	    _free_var(var, exp) | _free_var(var, arg)
 	}
-        TApp { exp, .. } => free_var(var, exp),
-        Tuple { entries } => entries.iter().any(|e| free_var(var, e)),
+        TApp { exp, .. } => _free_var(var, exp),
+        Tuple { entries } => entries.iter().any(|e| _free_var(var, e)),
         Binop { lhs, op: _, rhs } => {
-	    free_var(var, lhs) | free_var(var, rhs)
+	    _free_var(var, lhs) | _free_var(var, rhs)
 	}
         Lambda { arg, body } => {
-	    (arg.0.name != var) & free_var(var, body)
+	    (arg.0.name != var) & _free_var(var, body)
 	}
         Any { arg: _, body } =>
-	    free_var(var, body),
+	    _free_var(var, body),
         If { cond, branch_t, branch_f } => {
-	    free_var(var, cond) |
-	    free_var(var, branch_t) |
-	    free_var(var, branch_f)
+	    _free_var(var, cond) |
+	    _free_var(var, branch_t) |
+	    _free_var(var, branch_f)
 	}
     }
 }

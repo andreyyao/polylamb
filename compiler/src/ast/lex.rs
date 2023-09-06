@@ -95,10 +95,12 @@ pub enum Token<'source> {
     Else,
     #[token("let")]
     Let,
+    #[token("fix")]
+    Fix,
+    #[token("and")]
+    And,
     #[token("in")]
     In,
-    #[token("end")]
-    End,
     #[regex("Λ|any")]
     Any,
     #[regex("\\\\|λ|lambda")]

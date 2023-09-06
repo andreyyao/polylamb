@@ -72,6 +72,36 @@ pub fn check_expr(
                 })
             }
         }
+	Fix { funcs, body } => {
+	    val_ctxt.enter();
+	    let ctxt = val_ctxt.current();
+	    // Add the function signatures to context first
+	    for (fun, _, typ, ret, _) in funcs {
+		let fun_typ = RawType::Arrow(Box::new(typ.clone()), Box::new(ret.clone()));
+		ctxt.insert(fun.name.clone(), fun_typ);
+	    }
+	    // Now type check each function definition
+	    for (_, var, typ, ret, def) in funcs {
+		val_ctxt.enter();
+		val_ctxt.current().insert(var.name.clone(), typ.typ.clone());
+		let checked_typ = check_expr(def, val_ctxt, typ_vars)?;
+		if !alpha_equiv(&checked_typ, &ret) {
+                    return Err(TypeError {
+                        title: "Mismatched Types",
+                        annot_type: AnnotationType::Error,
+                        annotations: vec![SourceAnnotation {
+                            range: body.span.unwrap(),
+                            label: "fixpoint body's type doesn't match annotation",
+                            annotation_type: AnnotationType::Error,
+                        }],
+                    })
+                };
+		val_ctxt.exeunt();
+	    }
+	    let body_typ = check_expr(body, val_ctxt, typ_vars);
+	    val_ctxt.exeunt();
+	    body_typ
+	}
         EApp { exp, arg } => {
             let exp_t = check_expr(exp, val_ctxt, typ_vars)?;
             let arg_t = check_expr(arg, val_ctxt, typ_vars)?;
