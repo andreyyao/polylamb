@@ -353,17 +353,17 @@ impl Display for RawExpr {
                 write!(f, "({lhs} {op} {rhs})")
             }
             RawExpr::Lambda { arg: (v, t), body } => {
-                write!(f, "λ {}: {}. {}", v.name.red(), t, body)
+                write!(f, "(λ {}: {}. {})", v.name.red(), t, body)
             }
             RawExpr::Any { arg, body } => {
-                write!(f, "Λ {}. {}", arg.name.blue(), body)
+                write!(f, "(Λ {}. {})", arg.name.blue(), body)
             }
             RawExpr::If {
                 cond,
                 branch_t,
                 branch_f,
             } => {
-                write!(f, "if {cond} then {branch_t} else {branch_f}")
+                write!(f, "(if {cond} then {branch_t} else {branch_f})")
             }
         }
     }
