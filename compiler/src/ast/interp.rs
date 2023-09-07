@@ -28,7 +28,7 @@ pub fn eval_decl(
     environment: &mut Environment,
 ) -> Result<(), TypeError> {
     check_decl(&decl, context)?;
-    environment.insert(decl.id.clone(), Rc::new(RefCell::new(eval(environment, &decl.body))));
+    environment.insert(decl.id.clone(), eval(environment, &decl.body));
     Ok(())
 }
 
@@ -65,14 +65,14 @@ impl Into<RawExpr> for Value {
     }
 }
 
-pub type Environment = HashMap<String, Rc<RefCell<Value>>>;
+pub type Environment = HashMap<String, Value>;
 
 #[derive(Clone, Debug)]
 pub enum Value {
     VConst(Constant),
     VTuple(Vec<Value>),
-    VClosure(RawExpr, Environment),
-    VAny(RawExpr, Environment),
+    VClosure(RawExpr, Rc<RefCell<Environment>>),
+    VAny(RawExpr, Rc<RefCell<Environment>>),
 }
 
 impl Display for Value {
@@ -89,7 +89,7 @@ impl Display for Value {
             }
             Value::VClosure(e, c) | Value::VAny(e, c) => {
                 write!(f, "{}", e)?;
-                if !c.is_empty() {
+                if !(**c).borrow().is_empty() {
                     write!(f, " <<with closure>>")
                     // write!(f, " where {{")?;
                     // for (k, v) in c {
@@ -116,7 +116,7 @@ fn eval(env: &Environment, expr: &RawExpr) -> Value {
         // Constants being constants
         Con { val } => Value::VConst(val.clone()),
         // Yeah
-        Var { id } => env[id].borrow().clone(),
+        Var { id } => env[id].clone(),
         Let { pat, exp, body } => {
             let mut new_env = env.clone();
             let tup = eval(env, exp);
@@ -124,34 +124,31 @@ fn eval(env: &Environment, expr: &RawExpr) -> Value {
             eval(&new_env, body)
         }
         Fix { funcs, body } => {
-            let mut new_env = env.clone();
-            for (f, v, t, _, bod) in funcs {
+            let new_env = Rc::new(RefCell::new(env.clone()));
+	    for (f, v, t, _, bod) in funcs {
                 let lam = RawExpr::Lambda {
-                    arg: (v.clone(), t.clone()),
-                    body: Box::new(bod.clone()),
+		    arg: (v.clone(), t.clone()),
+		    body: Box::new(bod.clone()),
                 };
-                let closure = eval(&new_env, &lam);
-                new_env.insert(f.name.clone(), Rc::new(RefCell::new(closure)));
-            }
-	    for (f, _, _, _, _) in funcs {
-		let clo_f = new_env[f.name.as_str()].clone();
-		extend(&clo_f, &new_env)
-            }
-            eval(&new_env, body)
+                let closure = VClosure(lam, new_env.clone());
+                new_env.borrow_mut().insert(f.name.clone(), closure);
+	    }
+            let res = eval(&(*new_env).borrow().clone(), body);
+            res
         }
         EApp { exp, arg } => match eval(env, exp) {
             Value::VClosure(Lambda { arg: (id, _), body }, e) => {
                 let b = eval(env, arg);
-                let mut map = e.clone();
-                map.insert(id.name, Rc::new(RefCell::new(b)));
+                let mut map = (*e).borrow().clone();
+                map.insert(id.name, b);
                 eval(&map, &body.expr)
             }
             _ => panic!("\n{}\n{:?}\n", expr, env),
         },
         // TODO properly apply
         TApp { exp, arg } => {
-            if let VAny(Any { arg, body }, mut env2) = eval(env, exp) {
-                eval(&mut env2, &body)
+            if let VAny(Any { arg, body }, env2) = eval(env, exp) {
+                eval(&(*env2).borrow(), &body)
             } else {
                 panic!("{}", TYPE_ERR_MSG)
             }
@@ -199,8 +196,8 @@ fn eval(env: &Environment, expr: &RawExpr) -> Value {
                 }
             }
         }
-        Lambda { .. } => VClosure(expr.clone(), env.clone()),
-        Any { .. } => VAny(expr.clone(), env.clone()),
+        Lambda { .. } => VClosure(expr.clone(), Rc::new(RefCell::new(env.clone()))),
+        Any { .. } => VAny(expr.clone(), Rc::new(RefCell::new(env.clone()))),
         If {
             cond,
             branch_t,
@@ -230,7 +227,7 @@ fn bind_pat(clo: &Value, pat: &RawPattern, env: &mut Environment) {
         }
         (_, RawPattern::Wildcard(_)) => (),
         (_, RawPattern::Binding(id, _)) => {
-            env.insert(id.name.clone(), Rc::new(RefCell::new(clo.clone())));
+            env.insert(id.name.clone(), clo.clone());
         }
         _ => panic!("{}", TYPE_ERR_MSG),
     }
@@ -315,15 +312,6 @@ fn _fv<'ast>(expression: &'ast RawExpr) -> HashSet<&'ast str> {
             .union(&_fv(branch_f))
             .copied()
             .collect(),
-    }
-}
-
-/// Extends the closure value with the environment
-fn extend(val: &Rc<RefCell<Value>>, env: &Environment) {
-    let mut borrow_mut_val = RefCell::borrow_mut(val);
-    match *borrow_mut_val {
-        Value::VConst(_) | Value::VTuple(_) => (),
-        Value::VClosure(_, ref mut en) | Value::VAny(_, ref mut en) => en.extend(env.clone()),
     }
 }
 

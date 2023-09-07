@@ -16,8 +16,3 @@ annotate-snippets = { version = "0.9.1", features = ["color"] }
 
 [profile.dev]
 overflow-checks = false
-
-[features]
-# this effectively enable the feature `no-color` of colored when testing with
-# `cargo test --feature dumb_terminal`
-dumb_terminal = ["colored/no-color"]

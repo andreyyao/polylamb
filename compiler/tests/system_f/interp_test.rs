@@ -51,13 +51,15 @@ const ANY: &[&str] = &[
 
 const LET: &[&str] = &[
     r#"let twice: forall T. (T -> T) -> (T -> T) = any T. \ f: T -> T. \ x: T. f (f x) in
-       let quad: forall T. (T -> T) -> (T -> T) = any T. lambda f: T -> T. \ x: T. twice[T] f x in
+       let quad: forall T. (T -> T) -> (T -> T) = any T. lambda f: T -> T. \ x: T. twice[T] (twice[T] f) x in
        let plus_one: Int -> Int = lambda x: Int. x + 1 in
        quad[Int] plus_one 3"#,
 ];
 
-const FIX: &[&str] =
-    &["fix fact = lambda (x:Int) -> Int. if x > 0 then x * fact (x - 1) else 1 in fact 10"];
+const FIX: &[&str] = &[
+    "fix fact = lambda (x:Int) -> Int. if x > 0 then x * fact (x - 1) else 1 in fact 10",
+    "fix fib = lambda (x: Int) -> Int. if x == 0 | x == 1 then 1 else fib (x - 1) + (fib (x - 2)) in fib 10"
+];
 
 #[test]
 fn test_snippets() {

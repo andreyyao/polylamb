@@ -111,13 +111,15 @@ macro_rules! assert_matches {
 // Check pretty-printing emits the same AST when parsed back
 #[test]
 fn check_pretty_print() {
+    // Disable color printing, otherwise can't test for string equality
+    colored::control::set_override(false);
     for s in LITERALS.iter().chain(BINOPS).chain(IFS).chain(FIX) {
-	println!("{}", s);
-	let first_parse = raw_expr_of(s);
-	let first_print = first_parse.to_string();
-	println!("{}", first_print);
-	let second_parse = raw_expr_of(first_print.as_str());
-	let second_print = second_parse.to_string();
-	assert_eq!(first_print, second_print)
+        println!("{}", s);
+        let first_parse = raw_expr_of(s);
+        let first_print = first_parse.to_string();
+        println!("{}", first_print);
+        let second_parse = raw_expr_of(first_print.as_str());
+        let second_print = second_parse.to_string();
+        assert_eq!(first_print, second_print)
     }
 }

@@ -34,12 +34,12 @@ pub fn repl() -> Result<()> {
                     match parse_decl(input) {
                         Ok(decl) => match eval_decl(&decl, &mut ctxt, &mut env) {
                             Ok(_) => (),
-                            Err(err) => display_type_error(input, err)
+                            Err(err) => display_type_error(input, err),
                         },
                         Err(_) => match parse_expr(input) {
                             Ok(expr) => match eval_expr(&expr, &mut ctxt, &mut env) {
                                 Ok(closure) => println!("{}", closure),
-                                Err(err) => display_type_error(input, err)
+                                Err(err) => display_type_error(input, err),
                             },
                             Err(parse_err) => println!("{}", parse_err),
                         },
@@ -67,14 +67,14 @@ pub fn repl() -> Result<()> {
 
 fn print_context(env: &Environment, ctxt: &Context) {
     for (k, v) in ctxt {
-        println!("{} : {} := {}", k, v, *env[k].borrow())
+        println!("{} : {} := {}", k, v, env[k])
     }
 }
 
 fn display_type_error(source: &str, err: TypeError) {
-    use annotate_snippets::snippet::*;
     use annotate_snippets::display_list::DisplayList;
     use annotate_snippets::display_list::FormatOptions;
+    use annotate_snippets::snippet::*;
     let snippet = Snippet {
         title: Some(Annotation {
             id: None,
