@@ -16,12 +16,12 @@ const ARITHMETIC: &[&str] = &[
 const BOOLEAN: &[&str] = &[
     "true",
     "false",
-    "true && false",
-    "true || false",
-    "true && true",
-    "true || true",
-    "false && false",
-    "false || false",
+    "true & false",
+    "true | false",
+    "true & true",
+    "true | true",
+    "false & false",
+    "false | false",
     "1 < 3",
     "-9223372036854775808 < 0",
     "0 < 0",
@@ -38,7 +38,7 @@ const LAMBDA: &[&str] = &[
     "(any T. λ x: T. x) [Bool] true",
     r"let (x: Int, y: Bool, z: Int -> Bool) =
           (69, true, λ x: Int. x > 0) in
-          if y && (z x) then x else 0 - x",
+          if y & (z x) then x else 0 - x",
 ];
 
 const APP: &[&str] =

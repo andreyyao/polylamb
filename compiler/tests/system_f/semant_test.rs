@@ -72,14 +72,14 @@ const TUPLES: &[(&str, &str)] = &[
 const BINOP_NEG: &[&str] = &[
     "2 + (if 3 then 4 else 5)",
     "2 + false",
-    "true && (if false then 1048576 else -42069)",
+    "true & (if false then 1048576 else -42069)",
     "true - 3 == 1",
 ];
 
 const LAMBDA_NEG: &[&str] = &["λ (x: Int) (x: Int). y", "λ (x: Int) (y: Bool) (y: Int). y"];
 
 const LET_NEG: &[&str] = &[
-    "let x: Int = 1 in x && true",
+    "let x: Int = 1 in x & true",
     "let (x: Int, y: Bool) = (1, 2) in x + y",
 ];
 

@@ -1,11 +1,9 @@
 use crate::ast::ast::{Binary, Constant, Expr, RawExpr, RawPattern};
 use crate::util::persistent::Snapshot;
-use std::borrow::BorrowMut;
 use std::cell::RefCell;
 /** Interpreting for the System F AST */
 use std::collections::{HashMap, HashSet};
 use std::fmt::Display;
-use std::ops::Deref;
 use std::rc::Rc;
 
 use super::ast::{Decl, Prog};
@@ -137,9 +135,7 @@ fn eval(env: &Environment, expr: &RawExpr) -> Value {
             }
 	    for (f, _, _, _, _) in funcs {
 		let clo_f = new_env[f.name.as_str()].clone();
-		for (f1, _, _, _, _) in funcs {
-		    extend(&clo_f, &new_env)
-		}
+		extend(&clo_f, &new_env)
             }
             eval(&new_env, body)
         }
@@ -260,63 +256,63 @@ fn bind_pat(clo: &Value, pat: &RawPattern, env: &mut Environment) {
 
 impl RawPattern {
     /// Whether `self` contains the variable `var`
-    fn bindings<'ast>(&'ast self) -> Vec<&'ast str> {
+    fn _bindings<'ast>(&'ast self) -> Vec<&'ast str> {
         match self {
             RawPattern::Wildcard(_) => vec![],
             RawPattern::Binding(v, _) => vec![v.name.as_str()],
             RawPattern::Tuple(pats) => pats
                 .iter()
-                .fold(vec![], |acc, p| [p.bindings(), acc].concat()),
+                .fold(vec![], |acc, p| [p._bindings(), acc].concat()),
         }
     }
 }
 
 /// Returns a set of free variables
-fn fv<'ast>(expression: &'ast RawExpr) -> HashSet<&'ast str> {
+fn _fv<'ast>(expression: &'ast RawExpr) -> HashSet<&'ast str> {
     use RawExpr::*;
     match expression {
         Con { .. } => HashSet::new(),
         Var { id } => HashSet::from([id.as_str()]),
-        Let { pat, exp, body } => fv(exp)
-            .union(&(&fv(body) - &pat.bindings().into_iter().collect()))
+        Let { pat, exp, body } => _fv(exp)
+            .union(&(&_fv(body) - &pat._bindings().into_iter().collect()))
             .copied()
             .collect(),
         Fix { funcs, body } => {
             let mut set = HashSet::new();
             funcs.iter().for_each(|(_, v, _, _, bod)| {
-                let mut fun_set = fv(&bod);
+                let mut fun_set = _fv(&bod);
                 fun_set.remove(v.name.as_str());
-                set.extend(fv(&bod));
+                set.extend(_fv(&bod));
             });
-            set.extend(fv(&body));
+            set.extend(_fv(&body));
             funcs.iter().for_each(|(f, _, _, _, _)| {
                 set.remove(f.name.as_str());
             });
             set
         }
-        EApp { exp, arg } => fv(exp).union(&fv(arg)).copied().collect(),
-        TApp { exp, .. } => fv(exp),
+        EApp { exp, arg } => _fv(exp).union(&_fv(arg)).copied().collect(),
+        TApp { exp, .. } => _fv(exp),
         Tuple { entries } => {
             let mut set = HashSet::new();
-            entries.iter().for_each(|e| set.extend(fv(e)));
+            entries.iter().for_each(|e| set.extend(_fv(e)));
             set
         }
-        Binop { lhs, op: _, rhs } => fv(lhs).union(&fv(rhs)).copied().collect(),
+        Binop { lhs, op: _, rhs } => _fv(lhs).union(&_fv(rhs)).copied().collect(),
         Lambda { arg, body } => {
-            let mut set = fv(body);
+            let mut set = _fv(body);
             set.remove(arg.0.name.as_str());
             set
         }
-        Any { arg: _, body } => fv(body),
+        Any { arg: _, body } => _fv(body),
         If {
             cond,
             branch_t,
             branch_f,
-        } => fv(cond)
-            .union(&fv(branch_t))
+        } => _fv(cond)
+            .union(&_fv(branch_t))
             .copied()
             .collect::<HashSet<_, _>>()
-            .union(&fv(branch_f))
+            .union(&_fv(branch_f))
             .copied()
             .collect(),
     }

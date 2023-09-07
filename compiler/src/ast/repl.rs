@@ -1,6 +1,7 @@
 use rustyline::error::ReadlineError;
 use rustyline::{DefaultEditor, Result};
 
+use super::error::TypeError;
 use super::interp::{eval_decl, eval_expr, Environment};
 use super::parse::{parse_decl, parse_expr};
 use super::semant::Context;
@@ -33,12 +34,12 @@ pub fn repl() -> Result<()> {
                     match parse_decl(input) {
                         Ok(decl) => match eval_decl(&decl, &mut ctxt, &mut env) {
                             Ok(_) => (),
-                            Err(typ_err) => println!("{}", typ_err.title),
+                            Err(err) => display_type_error(input, err)
                         },
                         Err(_) => match parse_expr(input) {
                             Ok(expr) => match eval_expr(&expr, &mut ctxt, &mut env) {
                                 Ok(closure) => println!("{}", closure),
-                                Err(typ_err) => println!("{}", typ_err.title),
+                                Err(err) => display_type_error(input, err)
                             },
                             Err(parse_err) => println!("{}", parse_err),
                         },
@@ -68,6 +69,34 @@ fn print_context(env: &Environment, ctxt: &Context) {
     for (k, v) in ctxt {
         println!("{} : {} := {}", k, v, *env[k].borrow())
     }
+}
+
+fn display_type_error(source: &str, err: TypeError) {
+    use annotate_snippets::snippet::*;
+    use annotate_snippets::display_list::DisplayList;
+    use annotate_snippets::display_list::FormatOptions;
+    let snippet = Snippet {
+        title: Some(Annotation {
+            id: None,
+            label: Some(err.title),
+            annotation_type: err.annot_type,
+        }),
+        footer: vec![],
+        slices: vec![Slice {
+            source: &source,
+            line_start: 1, // TODO
+            origin: None,
+            annotations: err.annotations,
+            fold: false,
+        }],
+        opt: FormatOptions {
+            color: true,
+            anonymized_line_numbers: false,
+            margin: None,
+        },
+    };
+    let dlist: DisplayList = snippet.into();
+    println!("{}", dlist)
 }
 
 const HELP_MESSAGE: &str = r#"

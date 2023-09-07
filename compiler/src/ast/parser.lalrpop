@@ -114,6 +114,10 @@ ValExprLet: Expr = {
 
 ///////////// Precedence babyyyy /////////////
 
+// Expressions that start with keywords like "let", "if", "lambda"
+// ValExprKeyword: Expr = {
+// }
+
 // Lambda and any. Expression body extends as far as possible
 ValExpr2: Expr = {
     // For the one-argument case, no parentheses are needed
@@ -144,7 +148,7 @@ ValExpr2: Expr = {
     <e: ValExpr3> => e
 }
 
-// Binops with && ||, precedence 3, left assoc
+// Binops with & |, precedence 3, left assoc
 ValExpr3: Expr = {
     <l: @L> <e1: ValExpr3> <o: "infix3"> <e2:ValExpr4> <r: @R> =>
         Expr {
@@ -298,7 +302,7 @@ Pattern: Pattern = {
 	},
 }
 
-// Identifier
+// Identifiers
 EIdent: Ident = {
     <l: @L> <v: "eid"> <r: @R> =>
         Ident { name: v.to_owned(), span: Some((l, r)) }
@@ -307,6 +311,13 @@ EIdent: Ident = {
 TIdent: Ident = {
     <l: @L> <t: "tid"> <r: @R> =>
         Ident { name: t.to_owned(), span: Some((l, r)) }
+}
+
+// Binops
+Binop: &'a str = {
+    <op: "infix3"> => op,
+    <op: "infix4"> => op,
+    <op: "infix6"> => op
 }
 
 ///////////// HELPERS //////////////

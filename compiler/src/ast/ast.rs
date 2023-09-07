@@ -247,8 +247,8 @@ impl Binary {
             ">" => Gt,
             "==" => Eq,
             "!=" => Ne,
-            "&&" => And,
-            "||" => Or,
+            "&" => And,
+            "|" => Or,
             _ => panic!(" At the Disco"),
         }
     }
@@ -350,7 +350,7 @@ impl Display for RawExpr {
                 write!(f, ")")
             }
             RawExpr::Binop { lhs, op, rhs } => {
-                write!(f, "({lhs}) {op} ({rhs})")
+                write!(f, "({lhs} {op} {rhs})")
             }
             RawExpr::Lambda { arg: (v, t), body } => {
                 write!(f, "λ {}: {}. {}", v.name.red(), t, body)
@@ -416,8 +416,8 @@ impl Display for Binary {
             Ne => "!=",
             Lt => "<",
             Gt => ">",
-            And => "&&",
-            Or => "||",
+            And => "&",
+            Or => "|",
         };
         write!(f, "{symbol}")
     }

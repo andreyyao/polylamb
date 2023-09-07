@@ -63,7 +63,7 @@ pub enum Token<'source> {
     Infix4(&'source str),
 
     /// Precedence 3
-    #[regex(r"(\&\&)|(\|\|)", |lex| lex.slice())]
+    #[regex(r"[&|]", |lex| lex.slice())]
     Infix3(&'source str),
 
     /// Identifiers
