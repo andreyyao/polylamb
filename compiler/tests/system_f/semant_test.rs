@@ -102,7 +102,7 @@ fn test_type_checking_negative() {
     for suite in everything {
         for s in suite {
             let exp = parse_expr(s).unwrap().expr;
-            let error = check_closed_expr(&Expr::new(exp)).unwrap_err();
+            check_closed_expr(&Expr::new(exp)).unwrap_err();
         }
     }
 }

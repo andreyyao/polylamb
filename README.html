@@ -1,0 +1,261 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+	"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+<title>README.html</title>
+<meta http-equiv="Content-Type" content="text/html;charset=utf-8"/>
+
+</head>
+
+<body>
+
+<div id="top"></div>
+
+
+
+
+<!-- PROJECT LOGO -->
+
+
+<p><br /></p>
+
+<div align="center">
+  <!-- <a href="https://github.com/othneildrew/Best-README-Template"> -->
+  <!--   <img src="images/logo.png" alt="Logo" width="80" height="80"> -->
+  <!-- </a> -->
+
+  <h3 align="center">Polylamb</h3>
+
+  <p align="center">
+    A language implementation for the Polymorphic Lambda Calculus (System F), written in Rust.
+    <!-- <br /> -->
+    <!-- <a href="https://github.com/othneildrew/Best-README-Template"><strong>Explore the docs »</strong></a> -->
+    <!-- <br /> -->
+    <!-- <br /> -->
+    <!-- <a href="https://github.com/othneildrew/Best-README-Template">View Demo</a> -->
+    <!-- · -->
+    <!-- <a href="https://github.com/othneildrew/Best-README-Template/issues">Report Bug</a> -->
+    <!-- · -->
+    <!-- <a href="https://github.com/othneildrew/Best-README-Template/issues">Request Feature</a> -->
+  </p>
+</div>
+
+
+
+
+<!-- TABLE OF CONTENTS -->
+
+
+<p><details>
+  <summary>Table of Contents</summary>
+  <ol>
+    <li>
+      <a href="#about-the-project">About The Project</a>
+      <ul>
+        <li><a href="#built-with">Built With</a></li>
+      </ul>
+    </li>
+    <li>
+      <a href="#getting-started">Getting Started</a>
+      <ul>
+        <li><a href="#prerequisites">Prerequisites</a></li>
+        <li><a href="#installation">Installation</a></li>
+      </ul>
+    </li>
+    <li><a href="#usage">Usage</a></li>
+    <li><a href="#roadmap">Roadmap</a></li>
+    <li><a href="#contributing">Contributing</a></li>
+    <li><a href="#license">License</a></li>
+    <li><a href="#contact">Contact</a></li>
+    <li><a href="#acknowledgments">Acknowledgments</a></li>
+  </ol>
+</details></p>
+
+<!-- ABOUT THE PROJECT -->
+
+
+<h2>About The Project</h2>
+
+<!-- This is a (re)implementation of concepts from the paper [*From system F to typed assembly language*](https://dl.acm.org/doi/10.1145/319301.319345) by Greg Morrisett, David Walker, Karl Crary, and Neal Glew. There are a few implementation details that differ from their original implementation. -->
+
+
+<p>This project originated as a course project for <a href="https://www.cs.cornell.edu/courses/cs6120/2022sp/"><em>CS6120 - Advanced Compilers</em></a> at Cornell University.</p>
+
+<p align="right">(<a href="#top">back to top</a>)</p>
+
+
+<h3>Built With</h3>
+
+<ul>
+<li><a href="https://github.com/maciejhirsz/logos">Logos</a> - Fast lexer</li>
+<li><a href="https://github.com/lalrpop/lalrpop">LALRPOP</a> - LR(1) parser generator</li>
+<li><a href="https://docs.rs/rustyline/latest/rustyline">rustyline</a> - REPL library</li>
+<li><a href="https://docs.rs/annotate-snippets/latest/annotate_snippets">annotate-snippets</a> - Compiler Error Reporting</li>
+</ul>
+
+
+<p align="right">(<a href="#top">back to top</a>)</p>
+
+
+
+
+<!-- GETTING STARTED -->
+
+
+<h2>Getting Started</h2>
+
+<p>This is an example of how you may give instructions on setting up your project locally.
+To get a local copy up and running follow these simple example steps.</p>
+
+<h3>Prerequisites</h3>
+
+<ol>
+<li>Have working installation of the Rust compiler toolchain. The recommended way is to use <a href="https://rustup.rs/">rustup</a>.</li>
+<li>Installing <code>rust</code> using the method above should also have installed <code>cargo</code>.</li>
+</ol>
+
+
+<h3>Installation</h3>
+
+<ol>
+<li>Clone this repository</li>
+<li><code>cd</code> into the repository</li>
+<li>Run <code>cargo install --path compiler</code> to install the executable of <code>polylamb</code>
+
+<ul>
+<li>Alternatively, <code>cd</code> into the directory <code>compiler</code> and run <code>cargo build</code>, which should produce an executable in <code>compiler/target/debug/polylamb</code>.</li>
+</ul>
+</li>
+</ol>
+
+
+<!-- _Below is an example of how you can instruct your audience on installing and setting up your app. This template doesn't rely on any external dependencies or services._ -->
+
+
+
+
+<!-- 1. Get a free API Key at [https://example.com](https://example.com) -->
+
+
+<!-- 2. Clone the repo -->
+
+
+<!--    ```sh -->
+
+
+<!--    git clone https://github.com/your_username_/Project-Name.git -->
+
+
+<!--    ``` -->
+
+
+<!-- 3. Install NPM packages -->
+
+
+<!--    ```sh -->
+
+
+<!--    npm install -->
+
+
+<!--    ``` -->
+
+
+<!-- 4. Enter your API in `config.js` -->
+
+
+<!--    ```js -->
+
+
+<!--    const API_KEY = 'ENTER YOUR API'; -->
+
+
+<!--    ``` -->
+
+
+
+
+<!-- <p align="right">(<a href="#top">back to top</a>)</p> -->
+
+
+
+
+<!-- USAGE EXAMPLES -->
+
+
+<h2>Usage</h2>
+
+<h3>The interpreter REPL</h3>
+
+<p><img src="screenshots/repl.png" title="REPL" alt="REPL" /></p>
+
+<p>Type <code>#help</code> inside the repl to display a list available commands</p>
+
+<!-- Use this space to show useful examples of how a project can be used. Additional screenshots, code examples and demos work well in this space. You may also link to more resources. -->
+
+
+
+
+<!-- _For more examples, please refer to the [Documentation](https://example.com)_ -->
+
+
+
+
+<p align="right">(<a href="#top">back to top</a>)</p>
+
+
+
+
+<!-- ROADMAP -->
+
+
+<h2>Roadmap</h2>
+
+<ul>
+<li class="github_checkbox"><input disabled="" type="checkbox" checked="checked"/> language <a href="specs/system-F.pdf">specification</a></li>
+<li class="github_checkbox"><input disabled="" type="checkbox" checked="checked"/> lexing</li>
+<li class="github_checkbox"><input disabled="" type="checkbox" checked="checked"/> parsing</li>
+<li class="github_checkbox"><input disabled="" type="checkbox" checked="checked"/> type checking</li>
+<li class="github_checkbox"><input disabled="" type="checkbox" checked="checked"/> interpreter</li>
+<li class="github_checkbox"><input disabled="" type="checkbox"/> CPS transformation</li>
+<li class="github_checkbox"><input disabled="" type="checkbox"/> assembly emission</li>
+</ul>
+
+
+<p align="right">(<a href="#top">back to top</a>)</p>
+
+
+
+
+<!-- LICENSE -->
+
+
+<h2>License</h2>
+
+<p>Distributed under the MIT License. See <code>LICENSE</code> for more information.</p>
+
+<p align="right">(<a href="#top">back to top</a>)</p>
+
+
+
+
+<!-- ACKNOWLEDGMENTS -->
+
+
+<h2>Acknowledgments</h2>
+
+<ul>
+<li><a href="https://choosealicense.com">Choose an Open Source License</a></li>
+<li><a href="https://github.com/othneildrew/Best-README-Template">Best-README-Template</a> - template for README.md</li>
+<li><a href="https://matt.might.net/articles/cps-conversion/">Article about CPS conversion by Matt Might</a></li>
+</ul>
+
+
+<p align="right">(<a href="#top">back to top</a>)</p>
+
+
+</body>
+</html>

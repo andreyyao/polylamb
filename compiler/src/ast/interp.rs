@@ -115,7 +115,7 @@ fn eval(env: &Environment, expr: &RawExpr) -> Value {
     use RawExpr::*;
     use Value::*;
     // println!("Evaluating {} in {:?}", expr, env.keys());
-    match &expr {
+    match expr {
         // Constants being constants
         Con { val } => Value::VConst(val.clone()),
         // Yeah
@@ -127,7 +127,7 @@ fn eval(env: &Environment, expr: &RawExpr) -> Value {
             eval(&new_env, body)
         }
         Fix { funcs, body } => {
-            let new_env = Rc::new(RefCell::new(env.clone()));
+            let new_env = Rc::new(RefCell::new(filter_env(expr, env)));
             for (f, v, t, _, bod) in funcs {
                 let lam = RawExpr::Lambda {
                     arg: (v.clone(), t.clone()),
@@ -200,8 +200,12 @@ fn eval(env: &Environment, expr: &RawExpr) -> Value {
                 }
             }
         }
-        Lambda { .. } => VClosure(expr.clone(), Rc::new(RefCell::new(env.clone()))),
-        Any { .. } => VAny(expr.clone(), Rc::new(RefCell::new(env.clone()))),
+        Lambda { .. } => {
+	    VClosure(expr.clone(), Rc::new(RefCell::new(filter_env(expr, env))))
+	}
+        Any { .. } => {
+	    VAny(expr.clone(), Rc::new(RefCell::new(filter_env(expr, env))))
+	},
         If {
             cond,
             branch_t,
@@ -218,6 +222,11 @@ fn eval(env: &Environment, expr: &RawExpr) -> Value {
             }
         }
     }
+}
+
+fn filter_env(expr: &RawExpr, env: &Environment) -> Environment {
+    let fv = fv(expr);
+    env.clone().into_iter().filter(|(k, _)| fv.contains(k.as_str())).collect()
 }
 
 /// Pattern matches `pat` recursively and binds to `exp`
@@ -237,83 +246,65 @@ fn bind_pat(clo: &Value, pat: &RawPattern, env: &mut Environment) {
     }
 }
 
-// // Returns Some(ref), where `ref` is where the variable `v` occurs inside pattern `p`. None otherwise.
-// fn find_binding<'a>(p: &'a mut Pattern, v: &'a str) -> Option<&'a mut String> {
-//     match &mut p.pat {
-// 	RawPattern::Wildcard(_) => None,
-// 	RawPattern::Binding(u, _) => {
-// 	    if u.name == v { Some(&mut u.name) }
-// 	    else { None }
-// 	}
-// 	RawPattern::Tuple(pats) => {
-// 	    for pat in pats {
-// 		let cont = find_binding(pat, v);
-// 		if cont.is_some() { return cont }
-// 	    }
-// 	    return None
-// 	}
-//     }
-// }
-
 impl RawPattern {
     /// Whether `self` contains the variable `var`
-    fn _bindings<'ast>(&'ast self) -> Vec<&'ast str> {
+    fn bindings<'ast>(&'ast self) -> Vec<&'ast str> {
         match self {
             RawPattern::Wildcard(_) => vec![],
             RawPattern::Binding(v, _) => vec![v.name.as_str()],
             RawPattern::Tuple(pats) => pats
                 .iter()
-                .fold(vec![], |acc, p| [p._bindings(), acc].concat()),
+                .fold(vec![], |acc, p| [p.bindings(), acc].concat()),
         }
     }
 }
 
 /// Returns a set of free variables
-fn _fv<'ast>(expression: &'ast RawExpr) -> HashSet<&'ast str> {
+fn fv<'ast>(expression: &'ast RawExpr) -> HashSet<&'ast str> {
     use RawExpr::*;
     match expression {
         Con { .. } => HashSet::new(),
         Var { id } => HashSet::from([id.as_str()]),
-        Let { pat, exp, body } => _fv(exp)
-            .union(&(&_fv(body) - &pat._bindings().into_iter().collect()))
+        Let { pat, exp, body } => fv(exp)
+            .union(&(&fv(body) - &pat.bindings().into_iter().collect()))
             .copied()
             .collect(),
         Fix { funcs, body } => {
             let mut set = HashSet::new();
             funcs.iter().for_each(|(_, v, _, _, bod)| {
-                let mut fun_set = _fv(&bod);
+                let mut fun_set = fv(&bod);
                 fun_set.remove(v.name.as_str());
-                set.extend(_fv(&bod));
+                set.extend(fv(&bod));
             });
-            set.extend(_fv(&body));
+            set.extend(fv(&body));
             funcs.iter().for_each(|(f, _, _, _, _)| {
                 set.remove(f.name.as_str());
             });
             set
         }
-        EApp { exp, arg } => _fv(exp).union(&_fv(arg)).copied().collect(),
-        TApp { exp, .. } => _fv(exp),
+        EApp { exp, arg } => fv(exp).union(&fv(arg)).copied().collect(),
+        TApp { exp, .. } => fv(exp),
         Tuple { entries } => {
             let mut set = HashSet::new();
-            entries.iter().for_each(|e| set.extend(_fv(e)));
+            entries.iter().for_each(|e| set.extend(fv(e)));
             set
         }
-        Binop { lhs, op: _, rhs } => _fv(lhs).union(&_fv(rhs)).copied().collect(),
+        Binop { lhs, op: _, rhs } => fv(lhs).union(&fv(rhs)).copied().collect(),
         Lambda { arg, body } => {
-            let mut set = _fv(body);
+            let mut set = fv(body);
             set.remove(arg.0.name.as_str());
             set
         }
-        Any { arg: _, body } => _fv(body),
+        Any { arg: _, body } => fv(body),
         If {
             cond,
             branch_t,
             branch_f,
-        } => _fv(cond)
-            .union(&_fv(branch_t))
+        } => fv(cond)
+            .union(&fv(branch_t))
             .copied()
             .collect::<HashSet<_, _>>()
-            .union(&_fv(branch_f))
+            .union(&fv(branch_f))
             .copied()
             .collect(),
     }

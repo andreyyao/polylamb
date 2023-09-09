@@ -66,9 +66,10 @@ This project originated as a course project for [*CS6120 - Advanced Compilers*](
 
 ### Built With
 
-* [Logos](https://github.com/maciejhirsz/logos) - fast lexer
+* [Logos](https://github.com/maciejhirsz/logos) - Fast lexer
 * [LALRPOP](https://github.com/lalrpop/lalrpop) - LR(1) parser generator
-* [rust-ansi-term](https://github.com/ogham/rust-ansi-term) - Ansi term
+* [rustyline](https://docs.rs/rustyline/latest/rustyline) - REPL library
+* [annotate-snippets](https://docs.rs/annotate-snippets/latest/annotate_snippets) - Compiler Error Reporting
 
 <p align="right">(<a href="#top">back to top</a>)</p>
 
@@ -82,13 +83,15 @@ To get a local copy up and running follow these simple example steps.
 
 ### Prerequisites
 
-<!-- This is an example of how to list things you need to use the software and how to install them. -->
-<!-- * npm -->
-<!--   ```sh -->
-<!--   npm install npm@latest -g -->
-<!--   ``` -->
+1. Have working installation of the Rust compiler toolchain. The recommended way is to use [rustup](https://rustup.rs/).
+2. Installing `rust` using the method above should also have installed `cargo`.
 
 ### Installation
+
+1. Clone this repository
+2. `cd` into the repository
+3. Run `cargo install --path compiler` to install the executable of `polylamb`
+   - Alternatively, `cd` into the directory `compiler` and run `cargo build`, which should produce an executable in `compiler/target/debug/polylamb`.
 
 <!-- _Below is an example of how you can instruct your audience on installing and setting up your app. This template doesn't rely on any external dependencies or services._ -->
 
@@ -113,7 +116,11 @@ To get a local copy up and running follow these simple example steps.
 <!-- USAGE EXAMPLES -->
 ## Usage
 
-Not available at the moment.
+### The interpreter REPL
+![REPL](screenshots/repl.png "REPL")
+
+Type `#help` inside the repl to display a list available commands
+
 <!-- Use this space to show useful examples of how a project can be used. Additional screenshots, code examples and demos work well in this space. You may also link to more resources. -->
 
 <!-- _For more examples, please refer to the [Documentation](https://example.com)_ -->
@@ -121,53 +128,22 @@ Not available at the moment.
 <p align="right">(<a href="#top">back to top</a>)</p>
 
 
-
 <!-- ROADMAP -->
 ## Roadmap
-
-- [x] System F
-	- [x] language [specification](specs/system-F.pdf)
-	- [x] lexing
-	- [x] parsing
-	- [x] type checking
-	- [ ] CPS transformation
-	- [ ] assembly emission
-- [ ] typed RISC-V
-	- [ ] syntax specification
-	- [ ] statis semantics
-	- [ ] parsing
-	- [ ] type checking
-
-
-<!-- See the [open issues](https://github.com/othneildrew/Best-README-Template/issues) for a full list of proposed features (and known issues). -->
+- [x] language [specification](specs/system-F.pdf)
+- [x] lexing
+- [x] parsing
+- [x] type checking
+- [x] interpreter
+- [ ] CPS transformation
+- [ ] assembly emission
 
 <p align="right">(<a href="#top">back to top</a>)</p>
-
-
-
-<!-- CONTRIBUTING -->
-## Contributing
-Not open for pull requests at the moment. Feel free to give suggestions and comments!
-
-<p align="right">(<a href="#top">back to top</a>)</p>
-
-
 
 <!-- LICENSE -->
 ## License
 
 Distributed under the MIT License. See `LICENSE` for more information.
-
-<p align="right">(<a href="#top">back to top</a>)</p>
-
-
-
-<!-- CONTACT -->
-## Contact
-
-Andrey Yao - Email: `awy32 <at> cornell <dot> edu`
-
-Project Link: [https://github.com/andreyyao/polylamb](https://github.com/andreyyao/polylamb)
 
 <p align="right">(<a href="#top">back to top</a>)</p>
 
