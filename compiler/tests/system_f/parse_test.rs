@@ -68,45 +68,45 @@ macro_rules! assert_matches {
     };
 }
 
-// #[test]
-// fn check_exprs() {
-//     for s in LITERALS {
-//         let exp = raw_expr_of(s);
-//         println!("{}", exp);
-//         assert_matches!(exp, RawExpr::Con { .. })
-//     }
-//     for s in BINOPS {
-//         let exp = raw_expr_of(s);
-//         println!("{}", exp);
-//         assert_matches!(exp, RawExpr::Binop { .. })
-//     }
-//     for s in IFS {
-//         let exp = raw_expr_of(s);
-//         println!("{}", exp);
-//         assert_matches!(exp, RawExpr::If { .. })
-//     }
-//     for s in FIX {
-// 	let exp = raw_expr_of(s);
-//         println!("{}", exp);
-//         assert_matches!(exp, RawExpr::Fix { .. })
-//     }
-// }
+#[test]
+fn check_exprs() {
+    for s in LITERALS {
+        let exp = raw_expr_of(s);
+        println!("{}", exp);
+        assert_matches!(exp, RawExpr::Con { .. })
+    }
+    for s in BINOPS {
+        let exp = raw_expr_of(s);
+        println!("{}", exp);
+        assert_matches!(exp, RawExpr::Binop { .. })
+    }
+    for s in IFS {
+        let exp = raw_expr_of(s);
+        println!("{}", exp);
+        assert_matches!(exp, RawExpr::If { .. })
+    }
+    for s in FIX {
+        let exp = raw_expr_of(s);
+        println!("{}", exp);
+        assert_matches!(exp, RawExpr::Fix { .. })
+    }
+}
 
-// #[test]
-// fn check_types() {
-//     for t in TYPE_VARS {
-//         let typ = raw_type_of(t);
-//         println!("{}", typ);
-//         assert_matches!(typ, RawType::TVar(..))
-//     }
-// }
+#[test]
+fn check_types() {
+    for t in TYPE_VARS {
+        let typ = raw_type_of(t);
+        println!("{}", typ);
+        assert_matches!(typ, RawType::TVar(..))
+    }
+}
 
-// #[test]
-// fn check_decls() {
-//     for s in DECLS {
-//         assert_matches!(parse_decl(s), Result::Ok(..))
-//     }
-// }
+#[test]
+fn check_decls() {
+    for s in DECLS {
+        assert_matches!(parse_decl(s), Result::Ok(..))
+    }
+}
 
 // Check pretty-printing emits the same AST when parsed back
 #[test]

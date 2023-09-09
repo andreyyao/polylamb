@@ -1,12 +1,13 @@
 use crate::ast::ast::{Binary, Constant, Expr, RawExpr, RawPattern};
+use crate::ast::semant::substitute;
 use crate::util::persistent::Snapshot;
 use std::cell::RefCell;
 /** Interpreting for the System F AST */
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashSet};
 use std::fmt::Display;
 use std::rc::Rc;
 
-use super::ast::{Decl, Prog};
+use super::ast::{Decl, Prog, RawType};
 use super::error::TypeError;
 use super::semant::{check_decl, check_expr, Context};
 
@@ -44,7 +45,7 @@ pub fn eval_prog(prog: &Prog) -> Result<(), TypeError> {
 }
 
 pub fn eval_closed_expr(expr: &Expr) -> RawExpr {
-    let store = HashMap::default();
+    let store = Default::default();
     eval(&store, expr).into()
 }
 
@@ -65,7 +66,9 @@ impl Into<RawExpr> for Value {
     }
 }
 
-pub type Environment = HashMap<String, Value>;
+pub type Environment = BTreeMap<String, Value>;
+
+pub type TEnv = BTreeMap<String, RawType>;
 
 #[derive(Clone, Debug)]
 pub enum Value {
@@ -125,14 +128,14 @@ fn eval(env: &Environment, expr: &RawExpr) -> Value {
         }
         Fix { funcs, body } => {
             let new_env = Rc::new(RefCell::new(env.clone()));
-	    for (f, v, t, _, bod) in funcs {
+            for (f, v, t, _, bod) in funcs {
                 let lam = RawExpr::Lambda {
-		    arg: (v.clone(), t.clone()),
-		    body: Box::new(bod.clone()),
+                    arg: (v.clone(), t.clone()),
+                    body: Box::new(bod.clone()),
                 };
                 let closure = VClosure(lam, new_env.clone());
                 new_env.borrow_mut().insert(f.name.clone(), closure);
-	    }
+            }
             let res = eval(&(*new_env).borrow().clone(), body);
             res
         }
@@ -147,7 +150,8 @@ fn eval(env: &Environment, expr: &RawExpr) -> Value {
         },
         // TODO properly apply
         TApp { exp, arg } => {
-            if let VAny(Any { arg, body }, env2) = eval(env, exp) {
+            if let VAny(Any { arg: tvar, mut body }, env2) = eval(env, exp) {
+		subst(&mut body, tvar.name.as_str(), arg);
                 eval(&(*env2).borrow(), &body)
             } else {
                 panic!("{}", TYPE_ERR_MSG)
@@ -315,66 +319,63 @@ fn _fv<'ast>(expression: &'ast RawExpr) -> HashSet<&'ast str> {
     }
 }
 
-// /** Performs capture-avoiding substitution
-//     `expression`: The expression to perform substitute on
-//     `var`: The variable to substitute
-//     `val`: The value to sub for
-//  */
-// fn subst(expression: &mut RawExpr, var: &str, val: &RawExpr) {
-//     use RawExpr::*;
+/// Replaces all occurrences of `tvar` in `exp` with `typ`
+fn subst(e: &mut RawExpr, tvar: &str, target: &RawType) {
+    use RawExpr::*;
+    fn subst_pat(pat: &mut RawPattern, tvar: &str, target: &RawType) {
+	match pat {
+	    RawPattern::Wildcard(_) => (),
+	    RawPattern::Binding(_, t) => substitute(tvar, target, t),
+	    RawPattern::Tuple(pats) => pats.iter_mut().for_each(|p| subst_pat(p, tvar, target))
+	}
+    }
 
-//     match expression {
-//         Con { .. } => (),
-//         Var { id } => {
-//             if id == var {
-//                 *expression = val.clone();
-//             } else {
-//                 ()
-//             }
-//         },
-// 	// Since `let x = e1 in e2` is syntactic sugar for `(\x. e2) e1` in STLC, we want to substitute e1, which is `exp` here.
-//         Let { pat, exp, body } => {
-// 	    subst(exp, var, val);
-// 	    // Do nothing if same variable is bound in `pat`
-// 	    if pat.contains_var(var) {
-// 		()
-// 	    } else {
-
-// 	    }
-// 	}
-//         EApp { exp, arg } => {
-// 	    subst(exp, var, val);
-// 	    subst(arg, var, val)
-// 	}
-//         TApp { exp, .. } => {
-// 	    subst(exp, var, val)
-// 	}
-//         Tuple { entries } => entries
-//             .iter_mut()
-//             .for_each(|e| subst(e, var, val)),
-//         Binop { lhs, op: _, rhs } => {
-//             subst(lhs, var, val);
-//             subst(rhs, var, val)
-//         }
-//         Lambda { arg, body } => todo!(),
-//         Any { arg: _, body } => {
-// 	    subst(body, var, val)
-// 	}
-//         If {
-//             cond,
-//             branch_t,
-//             branch_f,
-//         } => {
-// 	    subst(cond, var, val);
-// 	    subst(branch_t, var, val);
-// 	    subst(branch_f, var, val)
-// 	}
-//     }
-// }
-
-// fn substitute_type(exp: RawExpr, var: &str, typ: &RawType) -> RawExpr {
-//     todo!()
-// }
+    match e {
+        Con { .. } => (),
+        Var { .. } => (),
+        Let { pat, exp, body } => {
+	    subst_pat(pat, tvar, target);
+	    subst(exp, tvar, target);
+	    subst(body, tvar, target)
+	}
+        Fix { funcs, body } => {
+	    for (_, _, t, ret, bod) in funcs {
+		substitute(tvar, target, t);
+		substitute(tvar, target, ret);
+		subst(bod, tvar, target)
+	    }
+	    subst(body, tvar, target)
+	}
+        EApp { exp, arg } => {
+	    subst(exp, tvar, target);
+	    subst(arg, tvar, target)
+	}
+        TApp { exp, arg } => {
+	    subst(exp, tvar, target);
+	    substitute(tvar, target, arg)
+	}
+        Tuple { entries } => {
+	    entries.iter_mut().for_each(|en| subst(en, tvar, target))
+	}
+        Binop { lhs, op: _, rhs } => {
+	    subst(lhs, tvar, target);
+	    subst(rhs, tvar, target)
+	}
+        Lambda { arg: (_, t), body } => {
+	    substitute(tvar, target, &mut t.typ);
+	    subst(body, tvar, target)
+	}
+        Any { arg, body } => {
+	    // Only sub in this case
+	    if arg.name != tvar { subst(body, tvar, target) }
+	}
+        If { cond, branch_t, branch_f } => {
+	    subst(cond, tvar, target);
+	    subst(branch_t, tvar, target);
+	    subst(branch_f, tvar, target)
+	}
+    }
+}
 
 const TYPE_ERR_MSG: &str =
     "Type mismatch during interpretation. This shouldn't happen. Did you typecheck?";

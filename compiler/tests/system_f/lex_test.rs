@@ -1,4 +1,4 @@
-use compiler::ast::lex::Token;
+use polylamb::ast::lex::Token;
 use logos::Logos;
 
 /// Expects to see `token` when lexing `input`
@@ -105,7 +105,7 @@ fn comments() {
 fn infixes() {
     let ops6 = ["+", "-"];
     let ops4 = ["<", ">", "==", "!="];
-    let ops3 = ["&&", "||"];
+    let ops3 = ["&", "|"];
     check_one("*", Token::Mul);
     check_one("=", Token::Equal);
     for input in ops6 {

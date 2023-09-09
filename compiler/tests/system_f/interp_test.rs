@@ -46,14 +46,15 @@ const APP: &[&str] =
 
 const ANY: &[&str] = &[
     "any T. λ g: T -> T. λ h: T. g (g h)",
-    "any T. λ f: T -> T. λ x: T. f (f x)", // The polymorphic "twice" function
+    "any T. λ f: T -> T. λ x: T. f (f x)", // The polymorphic "twice" function,
+    r"let n_times: forall T. Int -> (T -> T) -> (T -> T) = any T. \ n: Int. \ f : T -> T. fix helper = \ (i : Int) -> (T -> T). if i == 0 then (\ y:T. y) else (\ y: T. helper (i - 1) ( f y )) in helper n in n_times",
 ];
 
 const LET: &[&str] = &[
-    r#"let twice: forall T. (T -> T) -> (T -> T) = any T. \ f: T -> T. \ x: T. f (f x) in
+    r"let twice: forall T. (T -> T) -> (T -> T) = any T. \ f: T -> T. \ x: T. f (f x) in
        let quad: forall T. (T -> T) -> (T -> T) = any T. lambda f: T -> T. \ x: T. twice[T] (twice[T] f) x in
        let plus_one: Int -> Int = lambda x: Int. x + 1 in
-       quad[Int] plus_one 3"#,
+       quad[Int] plus_one 3",
 ];
 
 const FIX: &[&str] = &[

@@ -1,21 +1,8 @@
-use annotate_snippets::display_list::DisplayList;
-use annotate_snippets::snippet::Snippet;
-use compiler::ast::ast::Expr;
-use compiler::ast::parse::{parse_expr, parse_type};
-use compiler::ast::semant::{alpha_equiv, check_closed_expr};
+use polylamb::ast::ast::Expr;
+use polylamb::ast::parse::{parse_expr, parse_type};
+use polylamb::ast::semant::{equivalent, check_closed_expr};
 
-const ALPHA_EQUIV_POSITIVE: &[(&str, &str)] = &[
-    ("∀ A. A", "∀ B. B"),
-    ("X", "X"),
-    ("Int * (A -> B) * (∀ X. Y)", "Int * (A -> B) * (∀ Z. Y)"),
-    ("∀ X. X * (∀ Y. ∀ Z. X)", "∀ T. T * (∀ A. ∀ B. T)"),
-    ("∀ X. ∀ Y. Y", "∀ A. ∀ A. A"),
-    ("Bool -> (∀ X. ∀ Y. X)", "Bool -> (∀ Z. ∀ X. Z)"),
-    ("∀ X. ∀ Y. ∀ Z. (Y * Y) -> Z", "∀ A. ∀ A. ∀ C. (A * A) -> C"),
-    ("∀ X. ∀ X. ∀ X. X -> X", "∀ A. ∀ B. ∀ C. C -> C"),
-];
-
-const ALPHA_EQUIV_NEGATIVE: &[(&str, &str)] = &[
+const EQUIVALENT_NEGATIVE: &[(&str, &str)] = &[
     ("X", "Y"),
     ("∀ A. A", "∀ B. C"),
     ("Int -> Bool", "Unit -> Unit"),
@@ -28,19 +15,19 @@ const ALPHA_EQUIV_NEGATIVE: &[(&str, &str)] = &[
 const BINOPS: &[(&str, &str)] = &[
     ("1 + 1", "Int"),
     ("2 < (3 * 4 + 5 * 7)", "Bool"),
-    ("true && false", "Bool"),
-    ("true && (if false then 1 < 2 else 10 == 10)", "Bool"),
+    ("true & false", "Bool"),
+    ("true & (if false then 1 < 2 else 10 == 10)", "Bool"),
 ];
 
 /// Pairs of (any, type) strings
 const ANYS: &[(&str, &str)] = &[
-    ("any A. λ (x: A) (y: A). x", "forall B. B -> B -> B"),
+    ("any A. λ (x: A) (y: A). x", "forall A. A -> A -> A"),
     (
         "any X. λ (x: X * X). (x, x)",
-        "forall Y. Y * Y -> ((Y * Y) * (Y * Y))",
+        "forall X. X * X -> ((X * X) * (X * X))",
     ),
     (
-        "any X. λ (x1: Int) (x2: Int). (x1, x2)",
+        "any B. λ (x1: Int) (x2: Int). (x1, x2)",
         "forall B. Int -> Int -> (Int * Int)",
     ),
     ("(any X. Λ Y. λ (y: Y). y) [Int] [Bool]", "Bool -> Bool"),
@@ -84,24 +71,13 @@ const LET_NEG: &[&str] = &[
 ];
 
 #[test]
-fn test_alpha_equiv() {
-    for (s1, s2) in ALPHA_EQUIV_POSITIVE {
+fn test_equivalent_neg() {
+    for (s1, s2) in EQUIVALENT_NEGATIVE {
         let typ1 = parse_type(s1).unwrap().typ;
         let typ2 = parse_type(s2).unwrap().typ;
         println!("{}", typ1);
         println!("{}", typ2);
-        assert!(alpha_equiv(&typ1, &typ2))
-    }
-}
-
-#[test]
-fn test_alpha_equiv_neg() {
-    for (s1, s2) in ALPHA_EQUIV_NEGATIVE {
-        let typ1 = parse_type(s1).unwrap().typ;
-        let typ2 = parse_type(s2).unwrap().typ;
-        println!("{}", typ1);
-        println!("{}", typ2);
-        assert!(!alpha_equiv(&typ1, &typ2))
+        assert!(!equivalent(&typ1, &typ2))
     }
 }
 
@@ -115,7 +91,7 @@ fn test_type_checking() {
             let typ = parse_type(s2).unwrap().typ;
             let checked = check_closed_expr(&Expr::new(exp)).unwrap();
             println!("{}", checked);
-            assert!(alpha_equiv(&typ, &checked))
+            assert!(equivalent(&typ, &checked))
         }
     }
 }
@@ -127,9 +103,6 @@ fn test_type_checking_negative() {
         for s in suite {
             let exp = parse_expr(s).unwrap().expr;
             let error = check_closed_expr(&Expr::new(exp)).unwrap_err();
-            let snippet: Snippet = error.into();
-            let dlist = DisplayList::from(snippet);
-            println!("{}\n", dlist)
         }
     }
 }

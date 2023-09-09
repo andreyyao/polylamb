@@ -58,7 +58,7 @@ pub fn check_expr(
             val_ctxt.exeunt();
             let mut vars: HashSet<String> = HashSet::new();
             let pat_typ = traverse_pat(pat, &mut vars, val_ctxt)?;
-            if alpha_equiv(&exp_typ, &pat_typ) {
+            if equivalent(&exp_typ, &pat_typ) {
                 check_expr(body, val_ctxt, typ_vars)
             } else {
                 Err(TypeError {
@@ -85,7 +85,7 @@ pub fn check_expr(
                 val_ctxt.enter();
                 val_ctxt.current().insert(var.name.clone(), typ.typ.clone());
                 let checked_typ = check_expr(def, val_ctxt, typ_vars)?;
-                if !alpha_equiv(&checked_typ, &ret) {
+                if !equivalent(&checked_typ, &ret) {
                     return Err(TypeError {
                         title: "Mismatched Types",
                         annot_type: AnnotationType::Error,
@@ -107,7 +107,7 @@ pub fn check_expr(
             let arg_t = check_expr(arg, val_ctxt, typ_vars)?;
             match exp_t {
                 RawType::Arrow(t1, t2) => {
-                    if alpha_equiv(&t1.typ, &arg_t) {
+                    if equivalent(&t1.typ, &arg_t) {
                         Ok(t2.typ)
                     } else {
                         Err(TypeError {
@@ -234,7 +234,7 @@ pub fn check_expr(
             adventure!(f_typ, check_expr(branch_f, val_ctxt, typ_vars)?, val_ctxt);
             match c_typ {
                 Bool => {
-                    if alpha_equiv(&t_typ, &f_typ) {
+                    if equivalent(&t_typ, &f_typ) {
                         Ok(t_typ)
                     } else {
                         Err(TypeError {
@@ -277,7 +277,7 @@ pub fn check_decl<'ast>(decl: &'ast Decl, ctxt: &mut Context) -> Result<(), Type
     val_ctxt.exeunt();
     match check_result {
         Ok(typ) => {
-            if alpha_equiv(&typ, &decl.sig.typ) {
+            if equivalent(&typ, &decl.sig.typ) {
                 ctxt.insert(decl.id.clone(), typ);
                 Ok(())
             } else {
@@ -314,11 +314,11 @@ pub fn check_closed_expr(expr: &Expr) -> Result<RawType, TypeError> {
     check_expr(expr, &mut ctxt, &mut tvars)
 }
 
-/** Capture-avoiding substitution
+/** Substitution
 `tvar`: The type variable to replace
 `target`: The type to replace with
 `typ`: The type in which to perform the replacement */
-fn substitute(tvar: &String, target: &RawType, typ: &mut RawType) {
+pub fn substitute(tvar: &str, target: &RawType, typ: &mut RawType) {
     use RawType::*;
     match typ {
         TVar(var) if var == tvar => *typ = target.clone(),
@@ -336,64 +336,20 @@ fn substitute(tvar: &String, target: &RawType, typ: &mut RawType) {
     }
 }
 
-/** Alpha equivalence of types */
-pub fn alpha_equiv(typ1: &RawType, typ2: &RawType) -> bool {
-    // De Brujin indices mappings for bound type variables.
-    #[derive(Clone, Default)]
-    struct Env<'src> {
-        de_brujin_1: HashMap<&'src String, u16>,
-        de_brujin_2: HashMap<&'src String, u16>,
-        current_1: u16,
-        current_2: u16,
+/** Equivalence of types. No alpha equivalence to make life easier. */
+pub fn equivalent<'src>(typ1: &'src RawType, typ2: &'src RawType) -> bool {
+    use RawType::*;
+    match (typ1, typ2) {
+        (Int, Int) | (Bool, Bool) | (Unit, Unit) => true,
+        (TVar(v1), TVar(v2)) => v1 == v2,
+        (Prod(ts1), Prod(ts2)) => ts1
+            .iter()
+            .zip(ts2.iter())
+            .all(|(t1, t2)| equivalent(t1, t2)),
+        (Arrow(a1, b1), Arrow(a2, b2)) => equivalent(a1, a2) && equivalent(b1, b2),
+        (Forall(tv1, b1), Forall(tv2, b2)) => tv1.name == tv2.name && equivalent(b1, b2),
+        _ => false,
     }
-
-    // Helper function for alpha_equiv
-    fn alpha_equiv_help<'src>(
-        typ1: &'src RawType,
-        typ2: &'src RawType,
-        ctxt: &mut Snapshot<Env<'src>>,
-    ) -> bool {
-        use RawType::*;
-        match (typ1, typ2) {
-            (Int, Int) | (Bool, Bool) | (Unit, Unit) => true,
-            (TVar(v1), TVar(v2)) => {
-                let curr = ctxt.current();
-                let m1 = &curr.de_brujin_1;
-                let m2 = &curr.de_brujin_2;
-                let cont1 = m1.contains_key(v1);
-                let cont2 = m2.contains_key(v2);
-                if cont1 && cont2 {
-                    // Bound type variables must have same indices
-                    m1[v1] == m2[v2]
-                } else if !(cont1 || cont2) {
-                    // Free type variables must be literally equal
-                    v1 == v2
-                } else {
-                    false
-                }
-            }
-            (Prod(ts1), Prod(ts2)) => ts1.iter().zip(ts2.iter()).all(|(t1, t2): (&Type, &Type)| {
-                adventure!(alpha_eq, alpha_equiv_help(&t1.typ, &t2.typ, ctxt), ctxt);
-                alpha_eq
-            }),
-            (Arrow(a1, b1), Arrow(a2, b2)) => {
-                // Compare alpha equality of two types
-                adventure!(eq_a, alpha_equiv_help(a1, a2, ctxt), ctxt);
-                adventure!(eq_b, alpha_equiv_help(b1, b2, ctxt), ctxt);
-                eq_a && eq_b
-            }
-            (Forall(tv1, b1), Forall(tv2, b2)) => {
-                let context = ctxt.current();
-                context.de_brujin_1.insert(&tv1.name, context.current_1);
-                context.de_brujin_2.insert(&tv2.name, context.current_2);
-                context.current_1 += 1;
-                context.current_2 += 1;
-                alpha_equiv_help(b1, b2, ctxt)
-            }
-            _ => false,
-        }
-    }
-    alpha_equiv_help(typ1, typ2, &mut Snapshot::default())
 }
 
 /** Returns `Ok(t)`, where `t` is type for `pat`, when no duplicates,

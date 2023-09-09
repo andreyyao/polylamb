@@ -27,7 +27,7 @@ pub fn repl() -> Result<()> {
                             println!("See ya!");
                             break;
                         }
-                        "#context" => print_context(&env, &ctxt),
+                        "#env" => print_env(&env, &ctxt),
                         _ => println!("Unknown command"),
                     }
                 } else {
@@ -65,7 +65,7 @@ pub fn repl() -> Result<()> {
     Ok(())
 }
 
-fn print_context(env: &Environment, ctxt: &Context) {
+fn print_env(env: &Environment, ctxt: &Context) {
     for (k, v) in ctxt {
         println!("{} : {} := {}", k, v, env[k])
     }
