@@ -17,7 +17,7 @@ pub enum Type {
     // Universal types
     Forall(Id, Box<Type>),
     // Existential types, for typing closures
-    Exists(Id, Box<Type>)
+    Exists(Id, Box<Type>),
 }
 
 /// Bindings

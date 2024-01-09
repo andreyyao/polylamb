@@ -27,15 +27,15 @@ const IFS: &[&str] = &[
 ];
 
 const FIX: &[&str] = &[
-    "fix fact = lambda (x:Int) -> Int. if x > 0 then x * fact (x - 1) else 1 in fact 10",
-    "fix fib = λ (x : Int) -> Int. if x > 0 | x < 0 then 1 else (fib (x - 1)) + (fib (x - 2)) in fib"
+    "fix fact = λ (x:Int) : Int. if x > 0 then x * fact (x - 1) else 1 in fact 10",
+    "fix fib = λ (x : Int) : Int. if x > 0 | x < 0 then 1 else (fib (x - 1)) + (fib (x - 2)) in fib"
 ];
 
 const DECLS: &[&str] = &[
     "let x: Int = 1",
     "let xx: Hehe_2_w = (true & false + -1048)",
     "let xx: Bool = y",
-    "let fib: Int -> Int = (fix fib = λ (x : Int) -> Int . if x == 0 | x == 1 then 1 else (fib (x - 1)) + (fib (x - 2)) in fib)"
+    "let fib: Int -> Int = (fix fib = λ (x : Int) : Int . if x == 0 | x == 1 then 1 else (fib (x - 1)) + (fib (x - 2)) in fib)"
 ];
 
 const TYPE_VARS: &[&str] = &[

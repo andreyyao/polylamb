@@ -89,10 +89,10 @@ pub enum RawExpr {
 /// Patterns
 #[derive(Debug, PartialEq, Clone)]
 pub enum RawPattern {
-    /// Not producing binding `_: Int`
-    Wildcard(Type),
-    /// Variable binding like `x: Int`
-    Binding(Ident, Type),
+    /// Not producing binding `_`
+    Wildcard,
+    /// Variable binding like `x`
+    Binding(Ident),
     /// Tuple patterns like `(x: Int, (y: Bool, _: A))`
     Tuple(Vec<Pattern>),
 }
@@ -325,7 +325,7 @@ impl Display for RawExpr {
                 let (f_name, v_name, v_typ, ret_typ, exp) = &funcs[0];
                 write!(
                     f,
-                    "fix {} = λ ({}:{}) -> {}. {}",
+                    "fix {} = λ ({}:{}) : {}. {}",
                     f_name, v_name, v_typ, ret_typ, exp
                 )?;
                 for (f_name, v_name, v_typ, ret_typ, exp) in funcs.iter().skip(1) {
@@ -389,8 +389,8 @@ impl Display for RawPattern {
                 }
                 write!(f, ")")
             }
-            RawPattern::Binding(v, t) => write!(f, "{v}: {t}"),
-            RawPattern::Wildcard(t) => write!(f, "_: {t}"),
+            RawPattern::Binding(v) => write!(f, "{v}"),
+            RawPattern::Wildcard => write!(f, "_"),
         }
     }
 }

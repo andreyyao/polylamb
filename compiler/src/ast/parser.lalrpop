@@ -280,7 +280,7 @@ Argument: (Ident, Type) = {
 
 // Help for fixpoint
 Fixhelp: (Ident, Ident, Type, Type, Expr) = {
-    <f: EIdent> "=" "lambda" "(" <v: EIdent> ":" <t1: TypExpr> ")" "->" <t2: TypExpr> "." <e: ValExpr> => (f, v, t1, t2, e)
+    <f: EIdent> "=" "lambda" "(" <v: EIdent> ":" <t1: TypExpr> ")" ":" <t2: TypExpr> "." <e: ValExpr> => (f, v, t1, t2, e)
 }
 
 // Pattern
@@ -290,14 +290,14 @@ Pattern: Pattern = {
 	    pat: RawPattern::Tuple(multi),
 	    span: Some((l, r))
 	},
-    <l: @L> <v: EIdent> ":" <t: TypExpr> <r: @R> =>
+    <l: @L> <v: EIdent> <r: @R> =>
        Pattern {
-	    pat: RawPattern::Binding(v, t),
+	    pat: RawPattern::Binding(v),
 	    span: Some((l, r))
 	},
-    <l: @L> "_" ":" <t: TypExpr> <r: @R> =>
+    <l: @L> "_" <r: @R> =>
         Pattern {
-	    pat: RawPattern::Wildcard(t),
+	    pat: RawPattern::Wildcard,
 	    span: Some((l, r))
 	},
 }

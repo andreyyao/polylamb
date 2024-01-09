@@ -1,5 +1,5 @@
-use polylamb::ast::lex::Token;
 use logos::Logos;
+use polylamb::ast::lex::Token;
 
 /// Expects to see `token` when lexing `input`
 fn check_one(input: &str, token: Token) {
@@ -16,7 +16,7 @@ const INT_PAIRS: [(&str, i64); 8] = [
     ("12345", 12345),
     ("0", 0),
     ("-0", 0),
-    ("-9223372036854775808", -9223372036854775808)
+    ("-9223372036854775808", -9223372036854775808),
 ];
 
 const EXP_IDENTS: [&str; 21] = [

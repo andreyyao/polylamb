@@ -1,6 +1,6 @@
 use polylamb::ast::ast::Expr;
 use polylamb::ast::parse::{parse_expr, parse_type};
-use polylamb::ast::semant::{equivalent, check_closed_expr};
+use polylamb::ast::semant::{check_closed_expr, equivalent};
 
 const EQUIVALENT_NEGATIVE: &[(&str, &str)] = &[
     ("X", "Y"),
@@ -50,9 +50,9 @@ const TUPLES: &[(&str, &str)] = &[
     ),
     ("(69, Λ A. λ (a: A). a)", "Int * (forall A. A -> A)"),
     (
-	"(λ (x: Int). x + 1, λ (x: Bool). if x then 1 else 0)",
-	"(Int -> Int) * (Bool -> Int)"
-    )
+        "(λ (x: Int). x + 1, λ (x: Bool). if x then 1 else 0)",
+        "(Int -> Int) * (Bool -> Int)",
+    ),
 ];
 
 /// Negative tests form binary expressions
@@ -66,8 +66,8 @@ const BINOP_NEG: &[&str] = &[
 const LAMBDA_NEG: &[&str] = &["λ (x: Int) (x: Int). y", "λ (x: Int) (y: Bool) (y: Int). y"];
 
 const LET_NEG: &[&str] = &[
-    "let x: Int = 1 in x & true",
-    "let (x: Int, y: Bool) = (1, 2) in x + y",
+    "let x = 1 in x & true",
+    "let (x, y) = (1, 2) in x | y",
 ];
 
 #[test]

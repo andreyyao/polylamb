@@ -1,13 +1,14 @@
 /*! Type checking for the System F AST. */
 
-use std::collections::{HashMap, HashSet};
+use std::iter::zip;
 
 use crate::ast::ast::{
     Binary, Constant, Decl, Expr, Ident, Pattern, Prog, RawExpr, RawPattern, RawType, Type,
 };
 use crate::ast::error::TypeError;
-use crate::util::persistent::{adventure, Snapshot};
 use annotate_snippets::snippet::{AnnotationType, SourceAnnotation};
+use im::hashmap::HashMap;
+use im::hashset::HashSet;
 
 /** Mapping of variable names to types. Latest element is most recent */
 pub type Context = HashMap<String, RawType>;
@@ -20,8 +21,8 @@ Returns: The raw type of the checked `expr`, or `TypeError`
  * `typ_vars`: Set of declared type variables */
 pub fn check_expr(
     expr: &Expr,
-    val_ctxt: &mut Snapshot<Context>,
-    typ_vars: &mut Snapshot<HashSet<String>>,
+    val_ctxt: &Context,
+    typ_vars: &HashSet<String>,
 ) -> Result<RawType, TypeError> {
     use RawExpr::*;
     use RawType::*;
@@ -31,7 +32,7 @@ pub fn check_expr(
             Constant::Boolean(_) => Ok(Bool),
             Constant::Null => Ok(Unit),
         },
-        Var { id } => match val_ctxt.current().get(id.as_str()) {
+        Var { id } => match val_ctxt.get(id.as_str()) {
             Some(typ) => Ok(typ.clone()),
             None => Err(TypeError {
                 title: "Unbound variable",
@@ -44,47 +45,23 @@ pub fn check_expr(
             }),
         },
         Let { pat, exp, body } => {
-            val_ctxt.enter();
-            let exp_typ = match &pat.pat {
-                // Functions can refer to itself in body for recursion
-                RawPattern::Binding(ident, Type { typ, .. }) => {
-                    if let Arrow(_, _) = &typ {
-                        val_ctxt.current().insert(ident.name.clone(), typ.clone());
-                    };
-                    check_expr(exp, val_ctxt, typ_vars)?
-                }
-                _ => check_expr(exp, val_ctxt, typ_vars)?,
-            };
-            val_ctxt.exeunt();
-            let mut vars: HashSet<String> = HashSet::new();
-            let pat_typ = traverse_pat(pat, &mut vars, val_ctxt)?;
-            if equivalent(&exp_typ, &pat_typ) {
-                check_expr(body, val_ctxt, typ_vars)
-            } else {
-                Err(TypeError {
-                    title: "Mismatched types in pattern",
-                    annot_type: AnnotationType::Error,
-                    annotations: vec![SourceAnnotation {
-                        range: pat.span.unwrap(),
-                        label: "this pattern has wrong type",
-                        annotation_type: AnnotationType::Error,
-                    }],
-                })
-            }
+            let exp_typ = check_expr(exp, val_ctxt, typ_vars)?;
+            let mut ctxt1 = val_ctxt.clone();
+            traverse_pat(&pat, &mut HashSet::new(), &mut ctxt1, &exp_typ)?;
+            check_expr(body, &ctxt1, typ_vars)
         }
         Fix { funcs, body } => {
-            val_ctxt.enter();
-            let ctxt = val_ctxt.current();
+            let mut ctxt1 = val_ctxt.clone();
             // Add the function signatures to context first
             for (fun, _, typ, ret, _) in funcs {
                 let fun_typ = RawType::Arrow(Box::new(typ.clone()), Box::new(ret.clone()));
-                ctxt.insert(fun.name.clone(), fun_typ);
+                ctxt1.insert(fun.name.clone(), fun_typ);
             }
             // Now type check each function definition
             for (_, var, typ, ret, def) in funcs {
-                val_ctxt.enter();
-                val_ctxt.current().insert(var.name.clone(), typ.typ.clone());
-                let checked_typ = check_expr(def, val_ctxt, typ_vars)?;
+                let mut ctxt2 = ctxt1.clone();
+                ctxt2.insert(var.name.clone(), typ.typ.clone());
+                let checked_typ = check_expr(def, &ctxt2, typ_vars)?;
                 if !equivalent(&checked_typ, &ret) {
                     return Err(TypeError {
                         title: "Mismatched Types",
@@ -96,11 +73,8 @@ pub fn check_expr(
                         }],
                     });
                 };
-                val_ctxt.exeunt();
             }
-            let body_typ = check_expr(body, val_ctxt, typ_vars);
-            val_ctxt.exeunt();
-            body_typ
+            check_expr(body, &ctxt1, typ_vars)
         }
         EApp { exp, arg } => {
             let exp_t = check_expr(exp, val_ctxt, typ_vars)?;
@@ -152,11 +126,10 @@ pub fn check_expr(
             }
         }
         Tuple { entries } => {
-            let mut typs = vec![];
-            for e in entries {
-                adventure!(typ, Type::new(check_expr(e, val_ctxt, typ_vars)?), val_ctxt);
-                typs.push(typ)
-            }
+            let typs = entries
+                .iter()
+                .map(|e| Result::map(check_expr(e, val_ctxt, typ_vars), Type::new))
+                .collect::<Result<Vec<Type>, TypeError>>()?;
             Ok(RawType::Prod(typs))
         }
         Binop { lhs, op, rhs } => {
@@ -173,12 +146,12 @@ pub fn check_expr(
                     }],
                 }
             }
-            adventure!(type_l, check_expr(lhs, val_ctxt, typ_vars)?, val_ctxt);
-            adventure!(type_r, check_expr(rhs, val_ctxt, typ_vars)?, val_ctxt);
+            let typ_l = check_expr(lhs, val_ctxt, typ_vars)?;
+            let typ_r = check_expr(rhs, val_ctxt, typ_vars)?;
             match op {
                 Add | Sub | Mul | Eq | Ne | Gt | Lt => {
                     let err_msg = "expected to have type `Int`";
-                    match (type_l, type_r) {
+                    match (typ_l, typ_r) {
                         (Int, Int) => Ok(match op {
                             Add | Sub | Mul => Int,
                             _ => Bool,
@@ -189,7 +162,7 @@ pub fn check_expr(
                 }
                 And | Or => {
                     let err_msg = "expected to have type `Bool`";
-                    match (type_l, type_r) {
+                    match (typ_l, typ_r) {
                         (Bool, Bool) => Ok(Bool),
                         (Bool, _) => Err(err(err_msg, rhs.span.unwrap())),
                         _ => Err(err(err_msg, lhs.span.unwrap())),
@@ -198,8 +171,9 @@ pub fn check_expr(
             }
         }
         Lambda { arg, body } => {
+            let mut ctxt1 = val_ctxt.clone();
             let (id, typ) = arg;
-            let bound = val_ctxt.current().insert(id.name.clone(), typ.typ.clone());
+            let bound = ctxt1.insert(id.name.clone(), typ.typ.clone());
             if bound.is_some() {
                 return Err(TypeError {
                     title: "Redefinition of variables",
@@ -211,12 +185,13 @@ pub fn check_expr(
                     }],
                 });
             }
-            let body_typ = check_expr(body, val_ctxt, typ_vars)?;
+            let body_typ = check_expr(body, &ctxt1, typ_vars)?;
             Ok(Arrow(Box::new(typ.clone()), Box::new(Type::new(body_typ))))
         }
         Any { arg, body } => {
-            typ_vars.current().insert(arg.name.clone());
-            let typ = check_expr(body, val_ctxt, typ_vars)?;
+            let mut tvars1 = typ_vars.clone();
+            tvars1.insert(arg.name.clone());
+            let typ = check_expr(body, val_ctxt, &tvars1)?;
             let poly_copy = Ident {
                 name: arg.name.clone(),
                 span: None,
@@ -229,9 +204,9 @@ pub fn check_expr(
             branch_f,
         } => {
             // Check the three branches independently
-            adventure!(c_typ, check_expr(cond, val_ctxt, typ_vars)?, val_ctxt);
-            adventure!(t_typ, check_expr(branch_t, val_ctxt, typ_vars)?, val_ctxt);
-            adventure!(f_typ, check_expr(branch_f, val_ctxt, typ_vars)?, val_ctxt);
+            let c_typ = check_expr(cond, val_ctxt, typ_vars)?;
+            let t_typ = check_expr(branch_t, val_ctxt, typ_vars)?;
+            let f_typ = check_expr(branch_f, val_ctxt, typ_vars)?;
             match c_typ {
                 Bool => {
                     if equivalent(&t_typ, &f_typ) {
@@ -242,8 +217,7 @@ pub fn check_expr(
                             annot_type: AnnotationType::Error,
                             annotations: vec![SourceAnnotation {
                                 range: branch_f.span.unwrap(),
-                                label:
-                                    "this branch has different type from that of the true-branch",
+                                label: "true and false branches must have same types",
                                 annotation_type: AnnotationType::Error,
                             }],
                         })
@@ -270,11 +244,9 @@ Returns: `Ok` if everything is fine, or `TypeError` otherwise.
  * `decl`: The declaration to check
  * `val_ctxt`: Persistent mapping from variable names to raw type */
 pub fn check_decl<'ast>(decl: &'ast Decl, ctxt: &mut Context) -> Result<(), TypeError> {
-    let mut val_ctxt = Snapshot::new(ctxt.clone());
-    val_ctxt.enter();
-    let mut typ_vars_persist = Snapshot::default();
-    let check_result = check_expr(&decl.body, &mut val_ctxt, &mut typ_vars_persist);
-    val_ctxt.exeunt();
+    let val_ctxt = ctxt.clone();
+    let typ_vars = HashSet::default();
+    let check_result = check_expr(&decl.body, &val_ctxt, &typ_vars);
     match check_result {
         Ok(typ) => {
             if equivalent(&typ, &decl.sig.typ) {
@@ -309,9 +281,9 @@ pub fn check_prog<'ast>(prog: &'ast Prog) -> Result<(), TypeError> {
 
 // Check closed expression
 pub fn check_closed_expr(expr: &Expr) -> Result<RawType, TypeError> {
-    let mut ctxt = Snapshot::default();
-    let mut tvars = Snapshot::default();
-    check_expr(expr, &mut ctxt, &mut tvars)
+    let ctxt = HashMap::default();
+    let tvars = HashSet::default();
+    check_expr(expr, &ctxt, &tvars)
 }
 
 /** Substitution
@@ -352,22 +324,24 @@ pub fn equivalent<'src>(typ1: &'src RawType, typ2: &'src RawType) -> bool {
     }
 }
 
-/** Returns `Ok(t)`, where `t` is type for `pat`, when no duplicates,
+/** Returns `Ok(())` and inserts relevant bindings to `ctxt` when no duplicates,
 or `Err(te)` where te is the type error, when yes duplicates.
 Adds binding to `ctxt` along the way
 # Arguments
  * `pat`: The pattern to check
  * `vars`: Set of vars already seen in `pat`
- * `ctxt`: The typing Context */
+ * `ctxt`: The typing Context
+ * `typ` : The type to be destructed */
 fn traverse_pat(
     pat: &Pattern,
     vars: &mut HashSet<String>,
-    ctxt: &mut Snapshot<Context>,
-) -> Result<RawType, TypeError> {
+    ctxt: &mut Context,
+    typ: &RawType,
+) -> Result<(), TypeError> {
     match &pat.pat {
-        RawPattern::Binding(ident, typ) => {
-            let seen = !vars.insert(ident.name.clone());
-            if seen {
+        RawPattern::Binding(ident) => {
+            let seen = vars.insert(ident.name.clone());
+            if seen.is_some() {
                 Err(TypeError {
                     title: "Conflicting argument names",
                     annot_type: AnnotationType::Error,
@@ -378,19 +352,28 @@ fn traverse_pat(
                     }],
                 })
             } else {
-                ctxt.current().insert(ident.name.clone(), typ.typ.clone());
-                Ok(typ.typ.clone())
+                ctxt.insert(ident.name.clone(), typ.clone());
+                Ok(())
             }
         }
-        RawPattern::Tuple(pats) => {
-            let typs = pats
-                .iter()
-                .map(|p| traverse_pat(p, vars, ctxt))
-                .collect::<Result<Vec<RawType>, TypeError>>()?;
-            Ok(RawType::Prod(
-                typs.iter().map(|t| Type::new(t.clone())).collect(),
-            ))
-        }
-        RawPattern::Wildcard(typ) => Ok(typ.typ.clone()),
+        RawPattern::Wildcard => Ok(()),
+        RawPattern::Tuple(pats) =>
+            match typ {
+                RawType::Prod(ts) if pats.len() == ts.len() => {
+                    zip(pats.iter(), ts.iter())
+                        .map(|(p, t)| traverse_pat(p, vars, ctxt, t))
+                        .collect::<Result<Vec<()>, TypeError>>()?;
+                    Ok(())
+                }
+                _ => Err(TypeError {
+                    title: "Malformed pattern assignment",
+                    annot_type: AnnotationType::Error,
+                    annotations: vec![SourceAnnotation {
+                        range: pat.span.unwrap(),
+                        label: "pattern expected with same number of entries as product type",
+                        annotation_type: AnnotationType::Error,
+                    }],
+                })
+            }
     }
 }
