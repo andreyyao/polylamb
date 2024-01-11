@@ -48,8 +48,8 @@ const ANY: &[&str] = &[
     "any T. λ g: T -> T. λ h: T. g (g h)",
     "any T. λ f: T -> T. λ x: T. f (f x)", // The polymorphic "twice" function,
     r"let n_times = any T. \ n: Int. \ f : T -> T. fix helper = λ (i : Int) : (T -> T). if i == 0 then (\ y:T. y) else (\ y: T. helper (i - 1) ( f y )) in helper n in n_times",
-    r"any A. λ x: A. λ y: A. x", // true
-    r"any A. λ x: A. λ y: A. y", // false
+    "any A. λ x: A. λ y: A. x", // true
+    "any A. λ x: A. λ y: A. y", // false
 ];
 
 const LET: &[&str] = &[

@@ -216,13 +216,6 @@ impl RawType {
     }
 }
 
-impl RawExpr {
-    pub fn is_atomic(&self) -> bool {
-        use RawExpr::*;
-        matches!(self, Con { .. } | Var { .. } | Tuple { .. })
-    }
-}
-
 impl Type {
     pub fn new(typ: RawType) -> Type {
         Type { typ, span: None }
@@ -308,9 +301,10 @@ impl Display for Expr {
 
 impl Display for RawExpr {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use RawExpr::*;
         /// Parenths over composite expressions to disambiguate
-        fn fmt_composite(exp: &Expr, ff: &mut fmt::Formatter) -> fmt::Result {
-            if exp.is_atomic() {
+        fn atomize(ff: &mut fmt::Formatter, exp: &Expr) -> fmt::Result {
+            if matches!(exp.expr, Con { .. } | Var { .. } | Tuple { .. }) {
                 write!(ff, "{}", exp)
             } else {
                 write!(ff, "({})", exp)
@@ -337,26 +331,37 @@ impl Display for RawExpr {
                 }
                 write!(f, " in {}", body)
             }
-            RawExpr::EApp { exp, arg } => write!(f, "({exp} {arg})"),
-            RawExpr::TApp { exp, arg } => write!(f, "({exp}[{arg}])"),
+            RawExpr::EApp { exp, arg } => {
+                if matches!(exp.expr, EApp { .. }) { write!(f, "{exp}") }
+                else { atomize(f, exp) }?;
+                write!(f, " ")?;
+                atomize(f, arg)
+            }
+            RawExpr::TApp { exp, arg } => {
+                if matches!(exp.expr, TApp { .. }) { write!(f, "{exp}") }
+                else { atomize(f, exp) }?;
+                write!(f, "[{arg}]")
+            },
             RawExpr::Tuple { entries } => {
                 write!(f, "(")?;
-                for (i, t) in entries.iter().enumerate() {
+                for (i, e) in entries.iter().enumerate() {
                     if i != 0 {
                         write!(f, ", ")?;
                     }
-                    fmt_composite(t, f)?;
+                    write!(f, "{}", e)?;
                 }
                 write!(f, ")")
             }
             RawExpr::Binop { lhs, op, rhs } => {
-                write!(f, "({lhs} {op} {rhs})")
+                atomize(f, lhs)?;
+                write!(f, " {op} ")?;
+                atomize(f, rhs)
             }
             RawExpr::Lambda { arg: (v, t), body } => {
-                write!(f, "(λ {}: {}. {})", v.name.red(), t, body)
+                write!(f, "λ {}: {}. {}", v.name.red(), t, body)
             }
             RawExpr::Any { arg, body } => {
-                write!(f, "(Λ {}. {})", arg.name.blue(), body)
+                write!(f, "Λ {}. {}", arg.name.blue(), body)
             }
             RawExpr::If {
                 cond,
