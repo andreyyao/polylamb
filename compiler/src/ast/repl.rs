@@ -15,6 +15,8 @@ pub fn repl() -> Result<()> {
     }
     let mut env = Environment::default();
     let mut ctxt = Context::default();
+    println!("Welcome to the polylamb interpreter!");
+    println!("Type \"#help\" to display the help message\n");
     loop {
         let readline = rl.readline("λ2 >> ");
         match &readline {
@@ -100,9 +102,7 @@ fn display_type_error(source: &str, err: TypeError) {
 }
 
 const HELP_MESSAGE: &str = r#"
-List of commands in the repl:
-
 #help - Displays this help message
 #exit - Terminates the repl
 #remove [id] - Removes [id] and its associated value from the context
-#context - Print the current context"#;
+#env - Print the current context"#;

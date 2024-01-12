@@ -1,6 +1,6 @@
 use crate::ast::ast::{Binary, Constant, Expr, RawExpr, RawPattern, Decl, Prog, RawType};
 use crate::ast::error::TypeError;
-use crate::ast::semant::{check_decl, check_expr, Context, substitute};
+use crate::ast::semant::{check_decl, check_expr, Context};
 
 use std::cell::RefCell;
 use std::fmt::Display;
@@ -67,21 +67,8 @@ impl Display for Value {
                 }
                 write!(f, ")")
             }
-            Value::VClosure(e, c) | Value::VAny(e, c) => {
-                write!(f, "{}", e)?;
-                if !(**c).borrow().is_empty() {
-                    write!(f, " <<with closure>>")
-                    // write!(f, " where {{")?;
-                    // for (k, v) in c {
-                    // 	// Only need to print the free variables in closure environment
-                    // 	if free_var(k, e) {
-                    // 	    write!(f, "{} := {}; ", k, v)?
-                    // 	}
-                    // }
-                    // write!(f, "}}")
-                } else {
-                    Ok(())
-                }
+            Value::VClosure(..) | Value::VAny(..) => {
+                write!(f, "<closure>")
             }
         }
     }
